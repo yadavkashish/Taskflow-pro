@@ -35,6 +35,11 @@ class TaskUpdate(BaseModel):
     board_column: Optional[str] = None
     position: Optional[int] = None
 
+
+class TaskReorder(BaseModel):
+    status: TaskStatusValue
+    ordered_task_ids: List[int]
+
 class Task(TaskBase):
     id: int
     created_at: datetime

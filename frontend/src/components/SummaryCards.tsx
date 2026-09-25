@@ -1,30 +1,45 @@
 import React from 'react';
+import { Dependency, Task } from '../types';
+import { getDependencyState } from '../utils/dependencyState';
 
-const SummaryCards: React.FC<{ tasks: any[] }> = ({ tasks }) => {
+interface SummaryCardsProps {
+    tasks: Task[];
+    dependencies: Dependency[];
+}
+
+const SummaryCards: React.FC<SummaryCardsProps> = ({ tasks, dependencies }) => {
     const totalTasks = tasks.length;
-    const blockedTasks = tasks.filter(task => task.status === 'blocked').length;
-    const readyTasks = tasks.filter(task => task.status === 'ready').length;
+    const readyTasks = tasks.filter(
+        (task) => getDependencyState(task.id, tasks, dependencies) === 'READY'
+    ).length;
+    const blockedTasks = tasks.filter(
+        (task) => getDependencyState(task.id, tasks, dependencies) === 'BLOCKED'
+    ).length;
     const completedTasks = tasks.filter(task => task.status === 'done').length;
 
     return (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="bg-blue-500 text-white p-4 rounded-lg">
-                <h2 className="text-lg font-bold">Total Tasks</h2>
-                <p className="text-2xl">{totalTasks}</p>
+        <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+                <p className="text-sm font-medium text-slate-500">Total Tasks</p>
+                <p className="mt-2 text-3xl font-semibold tracking-tight text-slate-900">{totalTasks}</p>
+                <p className="mt-2 text-xs text-slate-400">Across your active workflow</p>
             </div>
-            <div className="bg-red-500 text-white p-4 rounded-lg">
-                <h2 className="text-lg font-bold">Blocked Tasks</h2>
-                <p className="text-2xl">{blockedTasks}</p>
+            <div className="rounded-xl border border-amber-100 bg-amber-50 p-5 shadow-sm">
+                <p className="text-sm font-medium text-amber-700">Ready</p>
+                <p className="mt-2 text-3xl font-semibold tracking-tight text-amber-950">{readyTasks}</p>
+                <p className="mt-2 text-xs text-amber-700">Prerequisites are complete</p>
             </div>
-            <div className="bg-green-500 text-white p-4 rounded-lg">
-                <h2 className="text-lg font-bold">Ready Tasks</h2>
-                <p className="text-2xl">{readyTasks}</p>
+            <div className="rounded-xl border border-rose-100 bg-rose-50 p-5 shadow-sm">
+                <p className="text-sm font-medium text-rose-700">Blocked</p>
+                <p className="mt-2 text-3xl font-semibold tracking-tight text-rose-950">{blockedTasks}</p>
+                <p className="mt-2 text-xs text-rose-700">Waiting on a predecessor</p>
             </div>
-            <div className="bg-gray-500 text-white p-4 rounded-lg">
-                <h2 className="text-lg font-bold">Completed Tasks</h2>
-                <p className="text-2xl">{completedTasks}</p>
+            <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-5 shadow-sm">
+                <p className="text-sm font-medium text-emerald-700">Completed</p>
+                <p className="mt-2 text-3xl font-semibold tracking-tight text-emerald-950">{completedTasks}</p>
+                <p className="mt-2 text-xs text-emerald-700">Tasks marked done</p>
             </div>
-        </div>
+        </section>
     );
 };
 

@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.api import tasks, dependencies, suggestions
+from app import config  # Load backend/.env before routers/services read configuration.
+from app.api import tasks, dependencies, schedule, suggestions
 from app.database import Base, engine
 
 app = FastAPI()
@@ -23,6 +24,7 @@ def startup():
 app.include_router(tasks.router, prefix="/tasks", tags=["tasks"])
 app.include_router(dependencies.router, prefix="/dependencies", tags=["dependencies"])
 app.include_router(suggestions.router, prefix="/suggestions", tags=["suggestions"])
+app.include_router(schedule.router, prefix="/schedule", tags=["schedule"])
 
 @app.get("/")
 async def root():

@@ -1,41 +1,27 @@
-# AI_USAGE.md
+# AI usage in TaskFlow Pro
 
-# AI Usage in TaskFlow Pro
+## Role and control
 
-## Overview
+TaskFlow Pro optionally uses OpenAI (`gpt-4o-mini`) to propose likely task dependency edges. AI is advisory only: it never creates, deletes, or changes dependencies. A user must explicitly request analysis, then accept or reject each suggestion.
 
-TaskFlow Pro integrates AI capabilities to enhance the user experience by providing intelligent suggestions for task dependencies. This document outlines how AI is utilized within the application, including the interaction with the LLM (Large Language Model) API and the guidelines for its use.
+On acceptance, the frontend uses the normal dependency-create endpoint. The deterministic DAG engine remains authoritative and can reject self-dependencies, duplicates, and cycles before an edge is persisted.
 
-## AI Features
+## API and data sent
 
-1. **Dependency Suggestions**: 
-   - The application can suggest potential prerequisite relationships between tasks based on their titles and descriptions.
-   - Users can request suggestions through the API endpoint `/suggest-dependencies`.
+The dashboard calls `POST /suggestions/suggest-dependencies` only after the user selects **Analyze Tasks**. Its request body is:
 
-2. **User Interaction**:
-   - Suggested dependencies are presented to the user, who can choose to accept or dismiss them.
-   - If a user accepts a suggestion, the application will validate the dependency through the existing DAG engine before persisting it.
+```json
+{
+  "tasks": [
+    {"id": 1, "title": "Database schema", "description": "..."}
+  ]
+}
+```
 
-3. **Error Handling**:
-   - If the LLM API key is missing or the API call fails, the application will continue to function without crashing, displaying a graceful message to the user.
+Only each task's ID, title, and description are sent to the model. A response is a list of proposed `predecessor_id` → `successor_id` edges with a reason and a confidence from 0 to 1.
 
-## LLM API Interaction
+## Configuration and availability
 
-- The backend service `llm_service.py` is responsible for communicating with the LLM API.
-- The prompt sent to the LLM includes:
-  - Current task information (title and description).
-  - Existing tasks with their IDs, titles, descriptions, and statuses.
-- The expected response format is a JSON array of suggested dependencies, each containing:
-  - `task_id`: The ID of the suggested task.
-  - `reason`: A brief explanation for the suggestion.
-  - `confidence`: A confidence score indicating the likelihood of the suggestion being valid.
+Configure `OPENAI_API_KEY` only in the backend environment; see `backend/.env.example`. Never put it in a `VITE_*` variable, frontend source, or committed `.env` file.
 
-## Guidelines for AI Usage
-
-- **Validation**: All AI-generated suggestions must be validated against the existing task graph to ensure they do not create cycles or duplicate dependencies.
-- **Transparency**: Users should be informed that AI suggestions are just that—suggestions. The final decision to create a dependency lies with the user.
-- **No Automatic Actions**: The AI will never automatically create or modify dependencies without user consent.
-
-## Conclusion
-
-The integration of AI in TaskFlow Pro aims to streamline project management by providing intelligent insights while maintaining user control over the dependency graph. This careful balance ensures that the application remains robust and user-friendly.
+Without an API key, CRUD, dependencies, scheduling, and DAG behavior continue normally. The assistant reports that AI suggestions are unavailable; provider failures show a concise retry message. Neither case fabricates results or modifies the graph.

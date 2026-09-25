@@ -1,0 +1,26 @@
+import React from 'react';
+import { Link } from 'react-router-dom';
+import PageHeader from '../components/PageHeader';
+import SummaryCards from '../components/SummaryCards';
+import { useTaskFlow } from '../context/TaskFlowContext';
+import { getDependencyState, getPredecessors } from '../utils/dependencyState';
+
+const OverviewPage: React.FC = () => {
+    const { tasks, dependencies, criticalPath } = useTaskFlow();
+    const readyTasks = tasks.filter((task) => task.status !== 'done' && getDependencyState(task.id, tasks, dependencies) === 'READY').slice(0, 4);
+    const blockedTasks = tasks.filter((task) => getDependencyState(task.id, tasks, dependencies) === 'BLOCKED').slice(0, 4);
+    const scheduledTasks = tasks.filter((task) => task.start_date && task.end_date);
+    const finish = scheduledTasks.map((task) => task.end_date as string).sort().at(-1);
+    return <>
+        <PageHeader title="Overview" subtitle="Monitor project execution, blockers, dependencies and delivery risk." />
+        <SummaryCards tasks={tasks} dependencies={dependencies} />
+        <div className="mt-6 grid gap-5 lg:grid-cols-2">
+            <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm"><div className="flex items-start justify-between"><div><h2 className="font-semibold text-slate-900">Ready to Start</h2><p className="mt-1 text-sm text-slate-500">{readyTasks.length} task{readyTasks.length === 1 ? '' : 's'} available now</p></div><Link to="/board" className="text-sm font-medium text-indigo-600 hover:text-indigo-700">View Board</Link></div>{readyTasks.length ? <ul className="mt-4 divide-y divide-slate-100">{readyTasks.map((task) => <li key={task.id} className="py-3 text-sm font-medium text-slate-700">{task.title}</li>)}</ul> : <p className="mt-4 text-sm text-slate-500">No unfinished tasks are ready to start.</p>}</section>
+            <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm"><div className="flex items-start justify-between"><div><h2 className="font-semibold text-slate-900">Blockers</h2><p className="mt-1 text-sm text-slate-500">Tasks waiting on unfinished prerequisites</p></div><Link to="/dependencies" className="text-sm font-medium text-indigo-600 hover:text-indigo-700">View Dependencies</Link></div>{blockedTasks.length ? <ul className="mt-4 space-y-3">{blockedTasks.map((task) => <li key={task.id} className="rounded-md bg-rose-50 px-3 py-2"><p className="text-sm font-medium text-slate-800">{task.title}</p><p className="mt-1 text-xs text-rose-700">Waiting for: {getPredecessors(task.id, tasks, dependencies).filter((item) => item.status !== 'done').map((item) => item.title).join(', ')}</p></li>)}</ul> : <p className="mt-4 text-sm text-slate-500">No blocked tasks. Nothing is waiting on unfinished prerequisites.</p>}</section>
+            <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm"><div className="flex items-start justify-between"><div><h2 className="font-semibold text-slate-900">Critical Path Summary</h2><p className="mt-1 text-sm text-slate-500">Delivery-driving dependency chain</p></div><Link to="/critical-path" className="text-sm font-medium text-indigo-600 hover:text-indigo-700">View Critical Path</Link></div>{criticalPath?.is_complete ? <div className="mt-4"><p className="text-2xl font-semibold text-violet-700">{criticalPath.total_duration} days</p><p className="mt-1 text-sm text-slate-500">{criticalPath.task_ids.length} critical tasks · {criticalPath.tasks.map((task) => task.title).join(' → ') || 'No path yet'}</p></div> : <p className="mt-4 text-sm text-amber-700">Add durations to complete Critical Path analysis.</p>}</section>
+            <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm"><div className="flex items-start justify-between"><div><h2 className="font-semibold text-slate-900">Schedule Summary</h2><p className="mt-1 text-sm text-slate-500">Backend-calculated project timeline</p></div><Link to="/schedule" className="text-sm font-medium text-indigo-600 hover:text-indigo-700">View Schedule</Link></div><div className="mt-4 grid grid-cols-2 gap-4"><div><p className="text-xl font-semibold text-slate-900">{scheduledTasks.length}</p><p className="text-xs text-slate-500">Scheduled tasks</p></div><div><p className="text-sm font-semibold text-slate-900">{finish?.slice(0, 10) ?? 'Not scheduled'}</p><p className="text-xs text-slate-500">Latest completion</p></div></div></section>
+        </div>
+    </>;
+};
+
+export default OverviewPage;
