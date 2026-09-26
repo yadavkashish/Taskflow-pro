@@ -3,6 +3,7 @@ import {
     Dependency,
     DependencyCreateInput,
     CriticalPath,
+    ProjectHealth,
     Task,
     TaskCreateInput,
     TaskUpdateInput,
@@ -14,6 +15,7 @@ import {
     deleteTask as deleteTaskRequest,
     getDependencies,
     getCriticalPath,
+    getProjectHealth,
     getTasks,
     moveTask as moveTaskRequest,
     reorderTask as reorderTaskRequest,
@@ -24,10 +26,13 @@ const useTasks = () => {
     const [tasks, setTasks] = useState<Task[]>([]);
     const [dependencies, setDependencies] = useState<Dependency[]>([]);
     const [criticalPath, setCriticalPath] = useState<CriticalPath | null>(null);
+    const [projectHealth, setProjectHealth] = useState<ProjectHealth | null>(null);
+    const [healthError, setHealthError] = useState<string | null>(null);
     const [loading, setLoading] = useState<boolean>(true);
     const [error, setError] = useState<string | null>(null);
 
     const fetchTasks = async () => {
+        const healthRequest = getProjectHealth();
         try {
             const [fetchedTasks, fetchedDependencies, fetchedCriticalPath] = await Promise.all([
                 getTasks(),
@@ -38,7 +43,17 @@ const useTasks = () => {
             setDependencies(fetchedDependencies);
             setCriticalPath(fetchedCriticalPath);
         } catch (err) {
+            void healthRequest.catch(() => undefined);
             setError('Failed to fetch tasks');
+            setLoading(false);
+            return;
+        }
+
+        try {
+            setProjectHealth(await healthRequest);
+            setHealthError(null);
+        } catch (err) {
+            setHealthError('Project Health is currently unavailable.');
         } finally {
             setLoading(false);
         }
@@ -93,6 +108,7 @@ const useTasks = () => {
             setTasks((prevTasks) =>
                 prevTasks.map((task) => (task.id === id ? movedTask : task))
             );
+            await fetchTasks();
             setError(null);
             return movedTask;
         } catch (err) {
@@ -158,6 +174,8 @@ const useTasks = () => {
         tasks,
         dependencies,
         criticalPath,
+        projectHealth,
+        healthError,
         loading,
         error,
         createTask,

@@ -62,6 +62,49 @@ export interface CriticalPath {
   is_complete: boolean;
 }
 
+export interface HealthTaskReference {
+  id: number;
+  title: string;
+}
+
+export interface HealthFinding {
+  id: string;
+  severity: 'high' | 'medium';
+  type: 'critical_task_blocked' | 'missing_duration' | 'unscheduled_task' | 'blocked_non_critical_task';
+  title: string;
+  message: string;
+  task_ids: number[];
+  waiting_for: HealthTaskReference[];
+}
+
+export interface ProjectHealthMetrics {
+  total_tasks: number;
+  completed_tasks: number;
+  ready_unfinished_tasks: number;
+  blocked_unfinished_tasks: number;
+  critical_task_count: number;
+  scheduled_tasks: number;
+  unscheduled_tasks: number;
+  dependency_count: number;
+  project_completion_date: string | null;
+  critical_path_duration: number | null;
+}
+
+export interface ProjectHealth {
+  overall_status: 'healthy' | 'attention' | 'at_risk';
+  findings: HealthFinding[];
+  metrics: ProjectHealthMetrics;
+  ready_tasks: Array<HealthTaskReference & { status: Task['status']; duration: number | null }>;
+  blocked_tasks: Array<HealthTaskReference & { critical: boolean; waiting_for: HealthTaskReference[] }>;
+  critical_path: {
+    is_complete: boolean;
+    duration: number | null;
+    task_ids: number[];
+    task_count: number;
+    missing_duration_task_ids: number[];
+  };
+}
+
 export interface ImpactAnalysisChanges {
   duration?: number;
   start_date?: string;

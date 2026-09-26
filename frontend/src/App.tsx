@@ -7,6 +7,7 @@ import BoardPage from './pages/BoardPage';
 import CriticalPathPage from './pages/CriticalPathPage';
 import DependenciesPage from './pages/DependenciesPage';
 import OverviewPage from './pages/OverviewPage';
+import ProjectHealthPage from './pages/ProjectHealthPage';
 import SchedulePage from './pages/SchedulePage';
 import './styles/index.css';
 
@@ -16,6 +17,7 @@ const App: React.FC = () => {
       <Routes>
         <Route element={<AppShell />}>
           <Route path="/overview" element={<OverviewPage />} />
+          <Route path="/health" element={<ProjectHealthPage />} />
           <Route path="/board" element={<BoardPage />} />
           <Route path="/dependencies" element={<DependenciesPage />} />
           <Route path="/ai-assistant" element={<AIAssistantPage />} />

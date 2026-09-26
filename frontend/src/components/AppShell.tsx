@@ -3,6 +3,7 @@ import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useTaskFlow } from '../context/TaskFlowContext';
 
 const navigation = [
+    { to: '/health', label: 'Project Health', icon: '!' },
     { to: '/overview', label: 'Overview', icon: '▣' },
     { to: '/board', label: 'Board', icon: '▦' },
     { to: '/dependencies', label: 'Dependencies', icon: '⤢' },

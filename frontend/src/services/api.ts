@@ -7,6 +7,7 @@ import {
     CriticalPath,
     ImpactAnalysisChanges,
     ImpactAnalysisResponse,
+    ProjectHealth,
     Task,
     TaskCreateInput,
     TaskUpdateInput,
@@ -80,6 +81,11 @@ export const getCriticalPath = async (): Promise<CriticalPath> => {
 
 export const previewImpact = async (taskId: number, changes: ImpactAnalysisChanges): Promise<ImpactAnalysisResponse> => {
     const response = await axios.post<ImpactAnalysisResponse>(`${API_BASE_URL}/analysis/impact`, { task_id: taskId, changes });
+    return response.data;
+};
+
+export const getProjectHealth = async (): Promise<ProjectHealth> => {
+    const response = await axios.get<ProjectHealth>(`${API_BASE_URL}/analysis/project-health`);
     return response.data;
 };
 
