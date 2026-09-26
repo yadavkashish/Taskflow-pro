@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState } from 'react';
 import TaskModal from '../components/TaskModal';
 import useTasks from '../hooks/useTasks';
 import { Task, TaskCreateInput } from '../types';
+import { previewImpact } from '../services/api';
 
 type TaskFlowValue = ReturnType<typeof useTasks> & {
     openNewTask: () => void;
@@ -30,7 +31,7 @@ export const TaskFlowProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
     return <TaskFlowContext.Provider value={{ ...taskFlow, openNewTask, openEditTask }}>
         {children}
-        <TaskModal isOpen={isTaskModalOpen} task={selectedTask} onSave={saveTask} onClose={() => setTaskModalOpen(false)} />
+        <TaskModal isOpen={isTaskModalOpen} task={selectedTask} onSave={saveTask} onPreview={previewImpact} onClose={() => setTaskModalOpen(false)} />
     </TaskFlowContext.Provider>;
 };
 

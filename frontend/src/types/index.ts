@@ -61,3 +61,33 @@ export interface CriticalPath {
   missing_duration_task_ids: number[];
   is_complete: boolean;
 }
+
+export interface ImpactAnalysisChanges {
+  duration?: number;
+  start_date?: string;
+}
+
+export interface ScheduleSnapshot {
+  duration: number | null;
+  start_date: string | null;
+  end_date: string | null;
+}
+
+export interface AffectedTask {
+  task_id: number;
+  title: string;
+  before_start: string | null;
+  after_start: string | null;
+  before_end: string | null;
+  after_end: string | null;
+  delay_days: number | null;
+}
+
+export interface ImpactAnalysisResponse {
+  task_id: number;
+  changed_task: { title: string; before: ScheduleSnapshot; after: ScheduleSnapshot };
+  affected_tasks: AffectedTask[];
+  affected_count: number;
+  project_completion: { before: string | null; after: string | null; delta_days: number | null; is_available: boolean };
+  critical_path: { before_task_ids: number[]; after_task_ids: number[]; before_duration: number; after_duration: number; delta_duration: number; changed: boolean; is_complete: boolean };
+}

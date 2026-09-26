@@ -5,6 +5,8 @@ import {
     DependencySuggestion,
     DependencySuggestionRequest,
     CriticalPath,
+    ImpactAnalysisChanges,
+    ImpactAnalysisResponse,
     Task,
     TaskCreateInput,
     TaskUpdateInput,
@@ -73,6 +75,11 @@ export const reorderTask = async (
 
 export const getCriticalPath = async (): Promise<CriticalPath> => {
     const response = await axios.get<CriticalPath>(`${API_BASE_URL}/schedule/critical-path`);
+    return response.data;
+};
+
+export const previewImpact = async (taskId: number, changes: ImpactAnalysisChanges): Promise<ImpactAnalysisResponse> => {
+    const response = await axios.post<ImpactAnalysisResponse>(`${API_BASE_URL}/analysis/impact`, { task_id: taskId, changes });
     return response.data;
 };
 
