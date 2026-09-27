@@ -3,6 +3,7 @@ export interface Task {
   title: string;
   description: string | null;
   status: 'backlog' | 'in_progress' | 'review' | 'done';
+  planned_start_date: string | null;
   start_date: string | null;
   end_date: string | null;
   duration: number | null;
@@ -12,10 +13,36 @@ export interface Task {
   updated_at: string;
 }
 
+export interface Project {
+  id: number;
+  name: string;
+  description: string | null;
+  start_date: string | null;
+  target_deadline: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DeadlineStatus {
+  target_deadline: string | null;
+  calculated_completion_date: string | null;
+  variance_days: number | null;
+  deadline_status: 'NO_DEADLINE' | 'NO_SCHEDULE' | 'ON_TRACK' | 'AT_RISK';
+}
+
+export interface ProjectSummary extends Project {
+  task_count: number;
+  in_progress_count: number;
+  blocked_count: number;
+  completed_count: number;
+  critical_path_duration: number | null;
+}
+
 export interface TaskCreateInput {
   title: string;
   description?: string | null;
   status?: Task['status'];
+  planned_start_date?: string | null;
   start_date?: string | null;
   end_date?: string | null;
   duration?: number | null;

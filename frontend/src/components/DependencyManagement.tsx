@@ -24,15 +24,15 @@ const DependencyManagement: React.FC<DependencyManagementProps> = ({ tasks, depe
   };
 
   return (
-    <section className="mt-8 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+    <section className="mt-8 min-w-0 rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
       <div className="flex flex-col gap-3 border-b border-slate-100 pb-4 sm:flex-row sm:items-start sm:justify-between">
-        <div>
+        <div className="min-w-0">
           <h2 className="text-lg font-semibold text-slate-900">Dependencies</h2>
-          <p className="mt-1 text-sm text-slate-500">Define prerequisite relationships that drive readiness and scheduling.</p>
+          <p className="mt-1 max-w-2xl break-words text-sm text-slate-500">Define prerequisite relationships that drive readiness and scheduling.</p>
         </div>
-        <button type="button" className="rounded-md border border-indigo-200 bg-indigo-50 px-3 py-2 text-sm font-medium text-indigo-700 transition hover:bg-indigo-100 disabled:cursor-not-allowed disabled:opacity-60" disabled={tasks.length < 2} onClick={() => setIsModalOpen(true)}>+ Add Dependency</button>
+        <button type="button" className="shrink-0 self-start rounded-md border border-indigo-200 bg-indigo-50 px-3 py-2 text-sm font-medium text-indigo-700 transition hover:bg-indigo-100 disabled:cursor-not-allowed disabled:opacity-60" disabled={tasks.length < 2} onClick={() => setIsModalOpen(true)}>+ Add Dependency</button>
       </div>
-      {error && <p role="alert" className="mt-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
+      {error && <p role="alert" className="mt-4 break-words rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
       {dependencies.length === 0 ? (
         <p className="mt-4 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">No dependencies yet. Add a prerequisite to demonstrate dependency-aware workflow.</p>
       ) : (
@@ -41,12 +41,12 @@ const DependencyManagement: React.FC<DependencyManagementProps> = ({ tasks, depe
             const predecessor = tasksById.get(dependency.predecessor_id);
             const successor = tasksById.get(dependency.successor_id);
             return (
-              <div key={dependency.id} className="flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
-                <span className="font-medium text-slate-800">{predecessor?.title ?? `Task #${dependency.predecessor_id}`}</span>
-                <span className="text-indigo-500">→</span>
-                <span className="font-medium text-slate-800">{successor?.title ?? `Task #${dependency.successor_id}`}</span>
-                <span className="ml-auto text-xs text-slate-400">prerequisite → dependent</span>
-                <button type="button" className="rounded px-2 py-1 text-xs font-medium text-rose-600 hover:bg-rose-50" onClick={() => removeDependency(dependency)}>Remove</button>
+              <div key={dependency.id} className="flex flex-wrap items-center gap-x-2 gap-y-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-3 text-sm sm:px-4">
+                <span className="min-w-0 break-words font-medium text-slate-800">{predecessor?.title ?? `Task #${dependency.predecessor_id}`}</span>
+                <span className="shrink-0 text-indigo-500">→</span>
+                <span className="min-w-0 break-words font-medium text-slate-800">{successor?.title ?? `Task #${dependency.successor_id}`}</span>
+                <span className="text-xs text-slate-400 sm:ml-auto">prerequisite → dependent</span>
+                <button type="button" className="shrink-0 rounded px-2 py-1 text-xs font-medium text-rose-600 hover:bg-rose-50" onClick={() => removeDependency(dependency)}>Remove</button>
               </div>
             );
           })}

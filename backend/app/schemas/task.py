@@ -11,6 +11,7 @@ class TaskBase(BaseModel):
     title: str
     description: Optional[str] = None
     status: TaskStatusValue = "backlog"
+    planned_start_date: Optional[datetime] = None
     start_date: Optional[datetime] = None
     end_date: Optional[datetime] = None
     duration: Optional[int] = None  # Duration in days
@@ -29,6 +30,7 @@ class TaskUpdate(BaseModel):
     title: Optional[str] = None
     description: Optional[str] = None
     status: Optional[TaskStatusValue] = None
+    planned_start_date: Optional[datetime] = None
     start_date: Optional[datetime] = None
     end_date: Optional[datetime] = None
     duration: Optional[int] = None

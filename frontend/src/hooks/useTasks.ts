@@ -9,20 +9,12 @@ import {
     TaskUpdateInput,
 } from '../types';
 import {
-    createDependency as createDependencyRequest,
-    createTask as createTaskRequest,
-    deleteDependency as deleteDependencyRequest,
-    deleteTask as deleteTaskRequest,
-    getDependencies,
-    getCriticalPath,
-    getProjectHealth,
-    getTasks,
-    moveTask as moveTaskRequest,
-    reorderTask as reorderTaskRequest,
-    updateTask as updateTaskRequest,
+    createProjectDependency, createProjectTask, deleteProjectDependency, deleteProjectTask,
+    getProjectDependencies, getProjectCriticalPath, getProjectTasks, getScopedProjectHealth,
+    moveProjectTask, reorderProjectTask, updateProjectTask,
 } from '../services/api';
 
-const useTasks = () => {
+const useTasks = (projectId: number) => {
     const [tasks, setTasks] = useState<Task[]>([]);
     const [dependencies, setDependencies] = useState<Dependency[]>([]);
     const [criticalPath, setCriticalPath] = useState<CriticalPath | null>(null);
@@ -32,12 +24,10 @@ const useTasks = () => {
     const [error, setError] = useState<string | null>(null);
 
     const fetchTasks = async () => {
-        const healthRequest = getProjectHealth();
+        const healthRequest = getScopedProjectHealth(projectId);
         try {
             const [fetchedTasks, fetchedDependencies, fetchedCriticalPath] = await Promise.all([
-                getTasks(),
-                getDependencies(),
-                getCriticalPath(),
+                getProjectTasks(projectId), getProjectDependencies(projectId), getProjectCriticalPath(projectId),
             ]);
             setTasks(fetchedTasks);
             setDependencies(fetchedDependencies);
@@ -61,7 +51,7 @@ const useTasks = () => {
 
     const createTask = async (task: TaskCreateInput) => {
         try {
-            const createdTask = await createTaskRequest(task);
+            const createdTask = await createProjectTask(projectId, task);
             setTasks((prevTasks) => [...prevTasks, createdTask]);
             await fetchTasks();
             setError(null);
@@ -75,7 +65,7 @@ const useTasks = () => {
 
     const updateTask = async (id: number, updatedTask: TaskUpdateInput) => {
         try {
-            const updatedTaskResponse = await updateTaskRequest(id, updatedTask);
+            const updatedTaskResponse = await updateProjectTask(projectId, id, updatedTask);
             setTasks((prevTasks) =>
                 prevTasks.map((task) => (task.id === id ? updatedTaskResponse : task))
             );
@@ -91,7 +81,7 @@ const useTasks = () => {
 
     const deleteTask = async (id: number) => {
         try {
-            await deleteTaskRequest(id);
+            await deleteProjectTask(projectId, id);
             setTasks((prevTasks) => prevTasks.filter((task) => task.id !== id));
             await fetchTasks();
             setError(null);
@@ -104,7 +94,7 @@ const useTasks = () => {
 
     const moveTask = async (id: number, status: Task['status']) => {
         try {
-            const movedTask = await moveTaskRequest(id, status);
+            const movedTask = await moveProjectTask(projectId, id, status);
             setTasks((prevTasks) =>
                 prevTasks.map((task) => (task.id === id ? movedTask : task))
             );
@@ -125,9 +115,9 @@ const useTasks = () => {
     ) => {
         try {
             if (task.status !== status) {
-                await moveTaskRequest(task.id, status);
+                await moveProjectTask(projectId, task.id, status);
             }
-            const reorderedTask = await reorderTaskRequest(task.id, status, orderedTaskIds);
+            const reorderedTask = await reorderProjectTask(projectId, task.id, status, orderedTaskIds);
             await fetchTasks();
             setError(null);
             return reorderedTask;
@@ -141,7 +131,7 @@ const useTasks = () => {
 
     const createDependency = async (dependency: DependencyCreateInput) => {
         try {
-            const createdDependency = await createDependencyRequest(dependency);
+            const createdDependency = await createProjectDependency(projectId, dependency);
             setDependencies((previous) => [...previous, createdDependency]);
             await fetchTasks();
             setError(null);
@@ -155,7 +145,7 @@ const useTasks = () => {
 
     const deleteDependency = async (id: number) => {
         try {
-            await deleteDependencyRequest(id);
+            await deleteProjectDependency(projectId, id);
             setDependencies((previous) => previous.filter((dependency) => dependency.id !== id));
             await fetchTasks();
             setError(null);
@@ -168,7 +158,7 @@ const useTasks = () => {
 
     useEffect(() => {
         fetchTasks();
-    }, []);
+    }, [projectId]);
 
     return {
         tasks,

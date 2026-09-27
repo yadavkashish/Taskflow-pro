@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, Enum
+from sqlalchemy import Column, Integer, String, DateTime, Enum, ForeignKey
 from sqlalchemy.sql import func
 from enum import Enum as PyEnum
 from app.database import Base
@@ -13,6 +13,7 @@ class Task(Base):
     __tablename__ = 'tasks'
 
     id = Column(Integer, primary_key=True, index=True)
+    project_id = Column(Integer, ForeignKey("projects.id"), nullable=False, default=1, index=True)
     title = Column(String, nullable=False)
     description = Column(String, nullable=True)
     status = Column(
@@ -25,6 +26,8 @@ class Task(Base):
         default=TaskStatus.BACKLOG,
         nullable=False,
     )
+    # User-entered lower bound. start_date is the scheduler's derived output.
+    planned_start_date = Column(DateTime, nullable=True)
     start_date = Column(DateTime, nullable=True)
     end_date = Column(DateTime, nullable=True)
     duration = Column(Integer, nullable=True)  # Duration in days

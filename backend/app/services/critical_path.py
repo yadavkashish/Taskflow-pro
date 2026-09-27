@@ -77,11 +77,17 @@ def calculate_critical_path_for_graph(tasks: Iterable[Task], edges: Iterable[Tup
     }
 
 
-def calculate_critical_path(db: Session) -> dict:
+def calculate_critical_path(db: Session, project_id: int | None = None) -> dict:
     """Database adapter for the pure deterministic critical-path calculation."""
-    tasks = db.query(Task).order_by(Task.id).all()
+    query = db.query(Task)
+    if project_id is not None:
+        query = query.filter(Task.project_id == project_id)
+    tasks = query.order_by(Task.id).all()
+    dependency_query = db.query(Dependency).join(Task, Dependency.predecessor_id == Task.id)
+    if project_id is not None:
+        dependency_query = dependency_query.filter(Task.project_id == project_id)
     edges = [
         (dependency.predecessor_id, dependency.successor_id)
-        for dependency in db.query(Dependency).order_by(Dependency.predecessor_id, Dependency.successor_id)
+        for dependency in dependency_query.order_by(Dependency.predecessor_id, Dependency.successor_id)
     ]
     return calculate_critical_path_for_graph(tasks, edges)

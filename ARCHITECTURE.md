@@ -1,46 +1,88 @@
-# ARCHITECTURE.md
-
 # TaskFlow Pro Architecture
 
 ## Overview
-TaskFlow Pro is a dependency-aware project management tool designed to enhance task management through a directed acyclic graph (DAG) dependency engine. This document outlines the architecture of the application, including its components, data flow, and interactions between the frontend and backend.
+
+TaskFlow Pro is a multi-project task-management application built around a
+deterministic dependency DAG. Each project owns an isolated task graph. The
+backend remains authoritative for dependency validation, derived scheduling,
+Critical Path, deadline status, health findings, and impact previews.
 
 ## Components
 
-### Backend
-The backend is built using FastAPI and is responsible for handling API requests, managing the database, and implementing the DAG engine. The key components include:
-
-- **main.py**: The entry point for the FastAPI application, setting up routes and middleware.
-- **database.py**: Manages database connections and configurations using SQLAlchemy.
-- **models/**: Contains the data models for tasks and dependencies.
-  - **task.py**: Defines the Task model with fields such as id, title, description, status, start_date, end_date, duration, and timestamps.
-  - **dependency.py**: Defines the Dependency model with fields such as id, predecessor_id, successor_id, and timestamps.
-- **schemas/**: Contains Pydantic schemas for data validation and serialization.
-- **api/**: Implements RESTful API endpoints for managing tasks and dependencies.
-- **services/**: Contains business logic, including the DAG engine for cycle detection, status derivation, and date propagation.
-
 ### Frontend
-The frontend is built using React and Vite, providing a user-friendly interface for managing tasks and visualizing dependencies. Key components include:
 
-- **App.tsx**: The main component that sets up routing and layout.
-- **KanbanBoard.tsx**: Displays tasks in a Kanban board format.
-- **TaskCard.tsx**: Represents individual tasks with relevant details.
-- **DependencyGraph.tsx**: Visualizes task dependencies as a graph.
-- **DependencyEditor.tsx**: Allows users to add or remove dependencies between tasks.
-- **SummaryCards.tsx**: Displays summary statistics of tasks.
+The React, TypeScript, Vite, and Tailwind frontend uses project-scoped routes:
+
+```text
+/projects/:projectId/overview
+/projects/:projectId/board
+/projects/:projectId/dependencies
+/projects/:projectId/schedule
+/projects/:projectId/calendar
+/projects/:projectId/critical-path
+```
+
+`ProjectContext` owns the selected project. `TaskFlowContext` uses the
+project ID to load project-scoped tasks, dependencies, Critical Path, and
+health data. Relevant components include the Kanban board, dependency
+management/map, schedule view, Calendar, Critical Path view, Project Health,
+task modal, and AI dependency assistant.
+
+The frontend refreshes this shared project state after normal task or
+dependency mutations. It does not contain a second scheduling engine.
+
+### Backend
+
+FastAPI project-scoped endpoints use SQLAlchemy sessions and Pydantic schemas.
+The main application services are:
+
+- `DAGEngine`: ownership checks, duplicate/self/cycle rejection, and derived
+  READY/BLOCKED state.
+- `scheduling`: full graph schedule recomputation from predecessor completion
+  and explicit planned-start constraints.
+- `critical_path`: deterministic longest-path analysis.
+- `deadline_status`: target-deadline versus calculated-completion status.
+- `project_health`: deterministic risk/findings analysis.
+- `impact_analysis`: read-only schedule and Critical Path preview.
+- `llm_service`: bounded, advisory provider integration for dependency
+  suggestions.
+
+### Persistence model
+
+- **Project**: name, description, start date, target deadline, and timestamps.
+- **Task**: owning `project_id`, workflow status, duration, board position,
+  planned start constraint, and derived schedule dates.
+- **Dependency**: predecessor-to-successor task edge.
+
+SQLite is the default local `DATABASE_URL` database. The repository uses
+SQLAlchemy and does not claim production-scale database support.
 
 ## Data Flow
-1. **User Interaction**: Users interact with the frontend to create, edit, and manage tasks and dependencies.
-2. **API Requests**: The frontend makes API calls to the backend to perform CRUD operations on tasks and dependencies.
-3. **Business Logic**: The backend processes requests, applying business logic through services and models.
-4. **Database Operations**: Data is persisted in the database, ensuring that all important information is retained across sessions.
-5. **Real-time Updates**: The frontend updates the UI based on responses from the backend, providing a seamless user experience.
 
-## DAG Engine
-The DAG engine is a core component that manages task dependencies. It ensures that:
-- Tasks are marked as BLOCKED or READY based on their prerequisites.
-- Date changes propagate through downstream dependencies without double-counting delays.
-- Cycles in the dependency graph are detected and rejected before persistence.
+1. A project-scoped page loads its project and shared task-flow state.
+2. The frontend calls the corresponding project-scoped API.
+3. The backend validates ownership and input through Pydantic and services.
+4. A normal mutation persists through SQLAlchemy.
+5. Dependency/schedule-affecting mutations invoke the deterministic schedule
+   recomputation service.
+6. The frontend refreshes shared state and renders the authoritative results.
 
-## Conclusion
-TaskFlow Pro's architecture is designed to provide a robust and scalable solution for project management. By leveraging a clean separation of concerns between the frontend and backend, along with a powerful DAG engine, the application aims to deliver a polished user experience while maintaining data integrity and correctness.
+## Dependency and Schedule Rules
+
+An edge `A -> B` means A must complete before B is READY. A task's persisted
+workflow status is limited to Backlog, In Progress, Review, or Done; READY and
+BLOCKED are derived from prerequisite completion.
+
+The graph must remain acyclic. The backend rejects cycles before persistence.
+Schedule recomputation uses the latest predecessor completion constraint, so
+converging paths do not double-count a common upstream delay.
+
+## AI Suggestion Boundary
+
+The selected project's task context is rebuilt server-side and sent to the
+configured provider. The response is validated and filtered before display.
+AI analysis is read-only: users explicitly accept or reject suggestions, and
+accepted edges use the normal dependency endpoint and DAG validation.
+
+See [AI_USAGE.md](AI_USAGE.md) and [TESTING.md](TESTING.md) for detailed
+provider safety and verification evidence.

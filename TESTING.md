@@ -1,70 +1,125 @@
-# TESTING.md
+# TaskFlow Pro — Testing & Reliability
 
-# Testing Strategies for TaskFlow Pro
+This document is the evaluator-facing record of the automated verification
+available in this repository. Results below were run from this workspace on
+September 27, 2026. TaskFlow Pro's backend test fixtures use an isolated SQLite
+database, so the suite does not alter the normal development database.
 
-## Overview
-This document outlines the testing strategies employed in the TaskFlow Pro project, detailing the types of tests, frameworks used, and how to run them.
+## Verification Summary
 
-## Testing Frameworks
-- **Backend**: 
-  - `pytest` is used for unit and integration testing of the FastAPI application.
-- **Frontend**: 
-  - `Vitest` and `React Testing Library` are used for testing React components and hooks.
+| Check | Result |
+| --- | --- |
+| Backend automated tests | PASS — 94 passed |
+| Backend test collection | PASS — 94 tests collected |
+| TypeScript | PASS — `npx tsc --noEmit` |
+| Production frontend build | PASS — `npm run build` |
+| Demo seed idempotency | PASS — covered by automated tests |
+| Cycle rejection | PASS — covered by automated tests |
+| No-compounding regression | PASS — covered by automated tests |
+| Rollback regression | PASS — covered by automated tests |
+| Frontend component/unit tests | NOT AVAILABLE — see [Known Limitations](#known-limitations-and-coverage-gaps) |
 
-## Backend Testing
+## Automated Test Suite
 
-### Unit Tests
-Unit tests are written to verify the functionality of individual components, such as the DAG engine and scheduling logic.
+Run the full backend suite:
 
-#### Key Tests
-1. **DAG Engine Tests**:
-   - Test for cycle detection (self, direct, and indirect cycles).
-   - Test for valid dependencies.
-   - Test for status derivation (BLOCKED and READY).
-   - Test for rollback behavior when tasks are moved back to previous statuses.
-   - Test for date propagation across dependencies.
-
-2. **Scheduling Tests**:
-   - Test for correct scheduling based on dependencies.
-   - Test for propagation of date changes through the task graph.
-
-### Integration Tests
-Integration tests ensure that the API endpoints function correctly and interact with the database as expected.
-
-#### Key Tests
-- Test all CRUD operations for tasks and dependencies.
-- Test the dependency creation endpoint for validation and cycle detection.
-- Test the AI suggestion endpoint for valid responses.
-
-## Frontend Testing
-
-### Component Tests
-Component tests verify that individual React components render correctly and behave as expected.
-
-#### Key Tests
-- Test rendering of the Kanban board and task cards.
-- Test the functionality of the task modal for creating and editing tasks.
-- Test the dependency editor for adding and removing dependencies.
-
-### Hook Tests
-Custom hooks are tested to ensure they manage state and API calls correctly.
-
-## Running Tests
-
-### Backend
-To run the backend tests, navigate to the `backend` directory and execute:
-```
-pytest
+```bash
+cd backend
+python -m pytest -q
 ```
 
-### Frontend
-To run the frontend tests, navigate to the `frontend` directory and execute:
-```
-npm run test
+Inspect the exact test inventory:
+
+```bash
+cd backend
+python -m pytest --collect-only -q
 ```
 
-## Test Coverage
-Ensure that tests cover a significant portion of the codebase. Aim for at least 80% coverage for both backend and frontend components.
+The latest verified run collected and passed **94 tests** across these modules:
 
-## Conclusion
-Testing is a critical part of the development process for TaskFlow Pro. By following the outlined strategies and utilizing the specified frameworks, we can ensure a robust and reliable application.
+| Test module | Verified behavior |
+| --- | --- |
+| `test_api.py` | Task CRUD, dependency creation, cycle rejection, schedule update propagation, persisted ordering and cross-column task moves |
+| `test_dag_engine.py` | Self/direct/indirect cycle rejection, valid and duplicate dependencies, derived READY/BLOCKED state, rollback, converging paths, persistence |
+| `test_scheduling.py` | Date calculation, derived READY/BLOCKED state, propagation, rollback |
+| `test_schedule_recomputation.py` | Full-chain recomputation, earlier/later root movement, diamond joins, latest-predecessor constraint, dependency add/remove, planned-start constraints, preview/apply parity |
+| `test_critical_path.py` | Simple chains, diamonds, parallel roots, deterministic ties, missing-duration handling |
+| `test_impact_analysis.py` | Read-only impact previews, chain/diamond propagation, critical-path changes, invalid duration rejection |
+| `test_project.py` | Project CRUD, project-scoped tasks/dependencies/critical path/health/impact, project deletion isolation |
+| `test_project_health.py` | Healthy/attention/at-risk findings, direct blockers, critical-path data, endpoint contract |
+| `test_deadline_status.py` | Project-scoped completion/deadline variance, on-track, no-deadline, no-schedule, date validation |
+| `test_suggestions.py` | Advisory AI suggestions, project grounding/filtering, no automatic persistence, normal DAG acceptance, provider configuration/error handling, Groq structured output and bounded retry behavior |
+| `test_demo_seed.py` | Idempotent 10-task demo seed, unrelated-project preservation, cycle rejection, Critical Path, converging-path delay, rollback state |
+| `test_persistence_storage.py` | Cross-session project/task/dependency persistence and demo-seed idempotency |
+
+## Frontend Verification
+
+Run static type checking and the production build:
+
+```bash
+cd frontend
+npx tsc --noEmit
+npm run build
+```
+
+Both commands passed in the latest verification.
+
+The repository defines `npm test` as `vitest`, but the current installed
+frontend environment does not provide a runnable `vitest` binary, and no
+application frontend test files are present outside `node_modules`.
+Accordingly, this repository does **not** claim automated frontend
+component-test coverage. TypeScript and Vite production-build verification are
+the currently runnable frontend checks.
+
+## Demo Seed Verification
+
+Create the optional evaluator demo data without deleting user data:
+
+```bash
+cd backend
+python scripts/seed_demo.py
+```
+
+The seed creates or reopens **TaskFlow Pro Demo Project** with 10 realistic
+software-delivery tasks, 11 acyclic dependency edges, project dates, derived
+schedule dates, a converging DAG, and a naturally calculated Critical Path.
+
+It is idempotent: a second run reuses the same named project and does not
+duplicate tasks or dependencies. The seed uses normal SQLAlchemy models and
+the existing scheduling service; it does not reset tables or invoke an LLM.
+
+## Controlled Failure Cases
+
+The following are intentional, automated behaviors—not unhandled failures:
+
+- Self, direct, and indirect dependency cycles are rejected before persistence.
+- Duplicate dependencies, self-links, and cross-project dependency attempts are rejected.
+- READY/BLOCKED remains derived from predecessor completion; it is not persisted as a workflow status.
+- A rollback from DONE to IN PROGRESS returns affected dependents to BLOCKED.
+- Diamond/converging schedules use the latest predecessor completion and do not double-count a shared upstream delay.
+- Missing or invalid task durations make weighted Critical Path analysis incomplete or reject invalid input rather than guessing.
+- AI suggestion analysis filters unknown IDs, foreign-project IDs, self-links, existing edges, duplicates, invalid confidence, and malformed items.
+- AI analysis is read-only. Only a user-approved suggestion reaches the normal dependency endpoint, where DAG validation remains authoritative.
+- Missing provider configuration, authentication failure, rate limit, malformed provider output, unsupported requests, and network/provider errors return controlled API errors without provider secrets.
+- Groq JSON-validation failures receive at most one repair retry; authentication, rate-limit, and unrelated bad-request failures are not retried.
+
+## Known Limitations and Coverage Gaps
+
+- Frontend unit/component tests are not currently runnable: `npm test -- --run`
+  fails because `vitest` is not available in the installed environment, and
+  no application frontend test files were found. This is documented rather
+  than masked by disabling checks.
+- Browser-level visual verification is manual. The Calendar, responsive
+  layouts, drag-and-drop interactions, and route transitions are not covered
+  by an automated browser test suite in this repository.
+- Live LLM behavior is intentionally not exercised by pytest. Provider
+  requests are mocked in automated tests so the suite does not require keys,
+  consume quota, or depend on a network connection.
+- SQLite persistence is tested locally and across sessions. The repository
+  does not claim load, concurrency, or production-database benchmark coverage.
+
+## Related Documentation
+
+- [Architecture](ARCHITECTURE.md)
+- [AI Usage and Safety](AI_USAGE.md)
+- [Backend setup and demo seed](backend/README.md)

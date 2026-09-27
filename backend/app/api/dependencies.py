@@ -6,6 +6,7 @@ from app.database import get_db
 from app.models.dependency import Dependency
 from app.schemas.dependency import DependencyCreate, DependencyOut
 from app.services.dag_engine import DAGEngine
+from app.services.scheduling import recompute_schedule
 
 router = APIRouter()
 
@@ -52,6 +53,7 @@ def delete_dependency(
 
     db.delete(dependency)
     db.commit()
+    recompute_schedule(db)
 
     return dependency
 

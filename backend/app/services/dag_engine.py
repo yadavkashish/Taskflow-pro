@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.models.dependency import Dependency
 from app.models.task import Task, TaskStatus
+from app.services.scheduling import recompute_schedule, recompute_schedule_for_graph
 
 
 class DAGEngine:
@@ -16,8 +17,9 @@ class DAGEngine:
     explicit, deterministic graph used by the unit-level DAG contract.
     """
 
-    def __init__(self, db: Optional[Session] = None):
+    def __init__(self, db: Optional[Session] = None, project_id: Optional[int] = None):
         self.db = db
+        self.project_id = project_id
         self._tasks = {} if db is None else None
         self._edges = set() if db is None else None
 
@@ -33,12 +35,10 @@ class DAGEngine:
     def get_dependencies(self):
         if self._in_memory:
             return sorted(self._edges)
-        return [
-            (dependency.predecessor_id, dependency.successor_id)
-            for dependency in self.db.query(Dependency).order_by(
-                Dependency.predecessor_id, Dependency.successor_id
-            )
-        ]
+        query = self.db.query(Dependency).join(Task, Dependency.predecessor_id == Task.id)
+        if self.project_id is not None:
+            query = query.filter(Task.project_id == self.project_id)
+        return [(dependency.predecessor_id, dependency.successor_id) for dependency in query.order_by(Dependency.predecessor_id, Dependency.successor_id)]
 
     def can_add_dependency(self, predecessor_id: int, successor_id: int) -> bool:
         return predecessor_id != successor_id and not self._creates_cycle(
@@ -58,6 +58,12 @@ class DAGEngine:
             self._edges.add(edge)
             return edge
 
+        predecessor = self.db.get(Task, predecessor_id)
+        successor = self.db.get(Task, successor_id)
+        if predecessor is None or successor is None:
+            raise HTTPException(status_code=404, detail="Task not found")
+        if predecessor.project_id != successor.project_id or (self.project_id is not None and predecessor.project_id != self.project_id):
+            raise HTTPException(status_code=422, detail="CROSS_PROJECT_DEPENDENCY")
         if self.db.query(Dependency).filter_by(
             predecessor_id=predecessor_id, successor_id=successor_id
         ).first():
@@ -74,28 +80,24 @@ class DAGEngine:
             self.db.rollback()
             raise HTTPException(status_code=409, detail="DUPLICATE_DEPENDENCY") from None
 
-        predecessor = self.db.get(Task, predecessor_id)
-        if predecessor is not None:
-            self.propagate_dates(predecessor)
+        recompute_schedule(self.db, predecessor.project_id)
         return dependency
 
     def _successors(self, task_id: int) -> List[int]:
         if self._in_memory:
             return [successor for predecessor, successor in self._edges if predecessor == task_id]
-        return [
-            successor for (successor,) in self.db.query(Dependency.successor_id).filter(
-                Dependency.predecessor_id == task_id
-            )
-        ]
+        query = self.db.query(Dependency.successor_id).join(Task, Dependency.successor_id == Task.id).filter(Dependency.predecessor_id == task_id)
+        if self.project_id is not None:
+            query = query.filter(Task.project_id == self.project_id)
+        return [successor for (successor,) in query]
 
     def _predecessors(self, task_id: int) -> List[int]:
         if self._in_memory:
             return [predecessor for predecessor, successor in self._edges if successor == task_id]
-        return [
-            predecessor for (predecessor,) in self.db.query(Dependency.predecessor_id).filter(
-                Dependency.successor_id == task_id
-            )
-        ]
+        query = self.db.query(Dependency.predecessor_id).join(Task, Dependency.predecessor_id == Task.id).filter(Dependency.successor_id == task_id)
+        if self.project_id is not None:
+            query = query.filter(Task.project_id == self.project_id)
+        return [predecessor for (predecessor,) in query]
 
     def _creates_cycle(self, predecessor_id: int, successor_id: int) -> bool:
         """An edge A -> B cycles exactly when B already reaches A."""
@@ -158,10 +160,9 @@ class DAGEngine:
         task = self._tasks.get(task_id) if self._in_memory else self.db.get(Task, task_id)
         if task is None:
             raise KeyError(task_id)
-        if task.start_date is not None:
-            task.start_date += timedelta(days=days)
-        if task.end_date is not None:
-            task.end_date += timedelta(days=days)
+        base_start = task.planned_start_date or task.start_date
+        if base_start is not None:
+            task.planned_start_date = base_start + timedelta(days=days)
         self.propagate_dates(task)
 
     def get_task_start_date(self, task_id: int):
@@ -176,28 +177,8 @@ class DAGEngine:
         return (self.get_task_start_date(task_id), self.get_task_end_date(task_id))
 
     def propagate_dates(self, task: Task) -> None:
-        """Push dates downstream using the maximum predecessor completion date."""
-        queue = [task.id]
-        changed = False
-        while queue:
-            predecessor_id = queue.pop(0)
-            for successor_id in self._successors(predecessor_id):
-                successor = self._tasks.get(successor_id) if self._in_memory else self.db.get(Task, successor_id)
-                predecessors = [
-                    self._tasks.get(task_id) if self._in_memory else self.db.get(Task, task_id)
-                    for task_id in self._predecessors(successor_id)
-                ]
-                predecessor_ends = [
-                    predecessor.end_date for predecessor in predecessors
-                    if predecessor is not None and predecessor.end_date is not None
-                ]
-                if successor and successor.start_date and predecessor_ends:
-                    earliest_start = max(predecessor_ends)
-                    if successor.start_date < earliest_start:
-                        successor.start_date = earliest_start
-                        if successor.duration is not None:
-                            successor.end_date = earliest_start + timedelta(days=successor.duration)
-                        changed = True
-                queue.append(successor_id)
-        if changed and not self._in_memory:
-            self.db.commit()
+        """Compatibility entry point for full deterministic schedule recomputation."""
+        if self._in_memory:
+            recompute_schedule_for_graph(self._tasks.values(), self._edges)
+            return
+        recompute_schedule(self.db)

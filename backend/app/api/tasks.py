@@ -5,7 +5,7 @@ from app.database import get_db
 from app.models.task import Task, TaskStatus
 from app.schemas.task import TaskCreate, TaskReorder, TaskUpdate, Task as TaskSchema
 from app.services.dag_engine import DAGEngine
-from app.services.scheduling import calculate_dates
+from app.services.scheduling import recompute_schedule
 
 router = APIRouter()
 
@@ -30,14 +30,18 @@ def create_task(
     if task_data["position"] is None:
         last_task = db.query(Task).filter(Task.status == task_data["status"]).order_by(Task.position.desc(), Task.id.desc()).first()
         task_data["position"] = (last_task.position + 1) if last_task and last_task.position is not None else 0
+    planned_start_date = task_data.get("planned_start_date") or task_data.get("start_date")
+    task_data["planned_start_date"] = planned_start_date
+    task_data["start_date"] = None
+    task_data["end_date"] = None
     db_task = Task(**task_data)
 
     db.add(db_task)
     db.commit()
     db.refresh(db_task)
 
-    if db_task.start_date is not None and db_task.duration is not None:
-        calculate_dates(db_task, db)
+    recompute_schedule(db)
+    db.refresh(db_task)
 
     return db_task
 
@@ -72,7 +76,14 @@ def update_task(
             detail="Task not found"
         )
 
-    for key, value in task.model_dump(exclude_unset=True).items():
+    update_data = task.model_dump(exclude_unset=True)
+    if "planned_start_date" in update_data:
+        db_task.planned_start_date = update_data.pop("planned_start_date")
+    elif "start_date" in update_data:
+        db_task.planned_start_date = update_data["start_date"]
+    update_data.pop("start_date", None)
+    update_data.pop("end_date", None)
+    for key, value in update_data.items():
         setattr(db_task, key, value)
 
     if "status" in task.model_fields_set:
@@ -81,17 +92,10 @@ def update_task(
     db.commit()
     db.refresh(db_task)
 
-    schedule_fields = {"start_date", "end_date", "duration"}
-    if {"start_date", "duration"}.intersection(task.model_fields_set):
-        if db_task.start_date is None or db_task.duration is None:
-            db_task.end_date = None
-            db.commit()
-            db.refresh(db_task)
-        else:
-            calculate_dates(db_task, db)
-
+    schedule_fields = {"planned_start_date", "start_date", "end_date", "duration"}
     if schedule_fields.intersection(task.model_fields_set):
-        DAGEngine(db).propagate_dates(db_task)
+        recompute_schedule(db)
+        db.refresh(db_task)
 
     return db_task
 
@@ -111,6 +115,7 @@ def delete_task(
 
     db.delete(db_task)
     db.commit()
+    recompute_schedule(db)
 
     return Response(status_code=http_status.HTTP_204_NO_CONTENT)
 

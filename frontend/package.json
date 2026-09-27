@@ -11,6 +11,7 @@
   "dependencies": {
     "@dnd-kit/core": "^5.0.0",
     "axios": "^0.21.1",
+    "lucide-react": "^1.48.0",
     "react": "^18.0.0",
     "react-dom": "^18.0.0",
     "react-router-dom": "^6.0.0",

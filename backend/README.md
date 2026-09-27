@@ -25,15 +25,36 @@ The backend is structured into several key components:
 
 ## Tech Stack
 - **Backend Framework**: FastAPI
-- **Database**: PostgreSQL (with SQLite fallback for development)
+- **Database**: SQLite for local development (the configured `DATABASE_URL` may point to another SQLAlchemy-supported database)
 - **ORM**: SQLAlchemy
 - **Testing**: pytest
 - **Dependency Management**: Pydantic
 
-## Database Schema
-The database consists of two main tables:
-1. **Task**: Stores task details including title, description, status, dates, and timestamps.
-2. **Dependency**: Manages relationships between tasks, ensuring no cycles or duplicate edges.
+## Database
+
+TaskFlow Pro uses SQLAlchemy with SQLite persistence for local development.
+By default the backend uses `sqlite:///./taskflow.db`; set `DATABASE_URL` to
+override it. SQLite satisfies the project's persistent-storage requirement for
+the submission without implying production-scale database guarantees.
+
+- **Project** stores its name, description, start date, target deadline, and timestamps.
+- **Task** stores its owning `project_id`, title, description, workflow status,
+  planned and calculated dates, duration, board column/order, and timestamps.
+- **Dependency** stores predecessor/successor task IDs and its creation time.
+
+Projects isolate their task graphs. Dependency creation verifies project
+ownership, rejects duplicates and self-links, and the DAG engine rejects cycles
+before an edge is persisted. READY/BLOCKED are deliberately derived from
+predecessor completion; they are not stored workflow statuses.
+
+### Schedule date migration
+
+`planned_start_date` is the optional user-entered earliest-start constraint.
+`start_date` and `end_date` are derived schedule values. On startup, the
+backend adds `planned_start_date` to existing databases if needed without
+dropping tables or data. Existing `start_date` values are copied into the new
+constraint column once because their historical origin cannot be known safely;
+new dependency propagation never writes back into the constraint column.
 
 ## DAG Algorithm Explanation
 The DAG engine is responsible for:
@@ -73,7 +94,19 @@ pytest
 ```
 
 ## Seed Data
-Seed data can be found in `backend/app/seed/seed_data.py` for populating the database with initial tasks and dependencies.
+
+Create or safely re-open the idempotent demonstration project with:
+
+```bash
+python scripts/seed_demo.py
+```
+
+Run the command from `backend/`. It creates `TaskFlow Pro Demo Project`
+only when it does not exist, adds only missing named demo tasks and dependency
+edges, and uses the existing scheduler to calculate dates. The 10-task dataset
+demonstrates multi-level and converging dependencies, derived Ready/Blocked
+states, Critical Path, schedule propagation, Calendar data, and a project
+deadline. It never drops tables, deletes projects, or resets user data.
 
 ## Example Demo Flow
 1. Start the backend server.

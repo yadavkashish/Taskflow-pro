@@ -3,6 +3,8 @@ import TaskModal from '../components/TaskModal';
 import useTasks from '../hooks/useTasks';
 import { Task, TaskCreateInput } from '../types';
 import { previewImpact } from '../services/api';
+import { useParams } from 'react-router-dom';
+import { previewProjectImpact } from '../services/api';
 
 type TaskFlowValue = ReturnType<typeof useTasks> & {
     openNewTask: () => void;
@@ -12,7 +14,9 @@ type TaskFlowValue = ReturnType<typeof useTasks> & {
 const TaskFlowContext = createContext<TaskFlowValue | null>(null);
 
 export const TaskFlowProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    const taskFlow = useTasks();
+    const { projectId } = useParams();
+    const numericProjectId = Number(projectId);
+    const taskFlow = useTasks(numericProjectId);
     const [isTaskModalOpen, setTaskModalOpen] = useState(false);
     const [selectedTask, setSelectedTask] = useState<Task | undefined>();
 
@@ -31,7 +35,7 @@ export const TaskFlowProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
     return <TaskFlowContext.Provider value={{ ...taskFlow, openNewTask, openEditTask }}>
         {children}
-        <TaskModal isOpen={isTaskModalOpen} task={selectedTask} onSave={saveTask} onPreview={previewImpact} onClose={() => setTaskModalOpen(false)} />
+        <TaskModal isOpen={isTaskModalOpen} task={selectedTask} onSave={saveTask} onPreview={(taskId, changes) => previewProjectImpact(numericProjectId, taskId, changes)} onClose={() => setTaskModalOpen(false)} />
     </TaskFlowContext.Provider>;
 };
 

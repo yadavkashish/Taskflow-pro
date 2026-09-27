@@ -7,3 +7,6 @@ pytest
 httpx
 python-dotenv
 openai
+google-genai
+groq
+psycopg[binary]

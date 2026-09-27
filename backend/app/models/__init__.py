@@ -2,3 +2,4 @@
 
 from .task import Task
 from .dependency import Dependency
+from .project import Project

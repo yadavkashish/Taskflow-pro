@@ -1,27 +1,49 @@
 # AI usage in TaskFlow Pro
 
-## Role and control
+## Purpose and providers
 
-TaskFlow Pro optionally uses OpenAI (`gpt-4o-mini`) to propose likely task dependency edges. AI is advisory only: it never creates, deletes, or changes dependencies. A user must explicitly request analysis, then accept or reject each suggestion.
+TaskFlow Pro optionally uses an LLM to suggest plausible prerequisite relationships between tasks in the currently selected project. The active provider is selected by `AI_PROVIDER`:
 
-On acceptance, the frontend uses the normal dependency-create endpoint. The deterministic DAG engine remains authoritative and can reject self-dependencies, duplicates, and cycles before an edge is persisted.
+- `groq` uses the official Groq Python SDK.
+- `gemini` uses the Google GenAI Python SDK.
+- `openai` uses the OpenAI Python SDK.
 
-## API and data sent
+AI only suggests. It never creates, deletes, or updates dependencies. A user explicitly requests analysis and must Accept or Reject every individual suggestion.
 
-The dashboard calls `POST /suggestions/suggest-dependencies` only after the user selects **Analyze Tasks**. Its request body is:
+## Grounding, structured output, and validation
 
-```json
-{
-  "tasks": [
-    {"id": 1, "title": "Database schema", "description": "..."}
-  ]
-}
+The frontend calls `POST /projects/{project_id}/suggestions/suggest-dependencies`. The backend verifies every submitted ID belongs to the selected project, then rebuilds the provider input from database records. Providers receive only that project's task IDs, titles, descriptions, and existing dependency edges.
+
+The shared prompt permits supplied IDs only, rejects speculative relationships, self-links, and existing edges, and asks for JSON. Groq uses strict JSON Schema output for the dependency-suggestion envelope; if Groq reports a JSON-generation validation failure, the backend permits one repair retry only. Gemini uses response-schema JSON mode; OpenAI uses JSON-object mode. All output is parsed as JSON and validated with Pydantic. Invalid IDs, cross-project IDs, self-links, existing edges, duplicate output, empty reasons, and invalid confidence values are filtered before reaching the frontend. No `eval` or `exec` is used.
+
+## Human approval and DAG safety
+
+Accepting a suggestion calls the normal project dependency endpoint; it does not call an LLM again. The deterministic DAG engine remains authoritative for rejecting duplicate edges, cross-project edges, self-links, and cycles before persistence. Confidence is advisory only and never auto-accepts an edge.
+
+## Configuration
+
+Configure provider credentials only in the backend environment:
+
+```text
+AI_PROVIDER=groq
+GROQ_API_KEY=...
+GROQ_MODEL=...
 ```
 
-Only each task's ID, title, and description are sent to the model. A response is a list of proposed `predecessor_id` → `successor_id` edges with a reason and a confidence from 0 to 1.
+Gemini and OpenAI remain available when configured:
 
-## Configuration and availability
+```text
+AI_PROVIDER=gemini
+GEMINI_API_KEY=...
+GEMINI_MODEL=...
 
-Configure `OPENAI_API_KEY` only in the backend environment; see `backend/.env.example`. Never put it in a `VITE_*` variable, frontend source, or committed `.env` file.
+AI_PROVIDER=openai
+OPENAI_API_KEY=...
+OPENAI_MODEL=...
+```
 
-Without an API key, CRUD, dependencies, scheduling, and DAG behavior continue normally. The assistant reports that AI suggestions are unavailable; provider failures show a concise retry message. Neither case fabricates results or modifies the graph.
+Never put provider keys in a `VITE_*` variable, frontend source, or a committed `.env` file.
+
+## Failure behavior
+
+Missing configuration, authentication failures, quota/rate limits, timeouts, network failures, unsupported provider requests, and malformed provider output produce controlled API errors without stack traces or secrets. The JSON repair retry is not used for authentication, rate-limit, model, timeout, network, or unrelated invalid-request failures. Core TaskFlow CRUD, dependency management, scheduling, and DAG validation continue to work when AI is unavailable. AI analysis never fabricates or persists dependencies.

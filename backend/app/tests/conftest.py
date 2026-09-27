@@ -6,6 +6,7 @@ from sqlalchemy import create_engine
 import app.database as database
 from app.models.dependency import Dependency
 from app.models.task import Task
+from app.models.project import Project
 
 
 TEST_DATABASE_PATH = Path(__file__).resolve().parent / ".pytest-taskflow.db"

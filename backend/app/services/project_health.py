@@ -16,17 +16,23 @@ def _task_reference(task: Task) -> dict:
     return {"id": task.id, "title": task.title}
 
 
-def analyze_project_health(db: Session) -> dict:
+def analyze_project_health(db: Session, project_id: int | None = None) -> dict:
     """Build explainable health findings from the existing project domain rules."""
-    tasks = db.query(Task).order_by(Task.id).all()
-    dependencies = db.query(Dependency).order_by(Dependency.predecessor_id, Dependency.successor_id).all()
+    task_query = db.query(Task)
+    if project_id is not None:
+        task_query = task_query.filter(Task.project_id == project_id)
+    tasks = task_query.order_by(Task.id).all()
+    dependency_query = db.query(Dependency).join(Task, Dependency.predecessor_id == Task.id)
+    if project_id is not None:
+        dependency_query = dependency_query.filter(Task.project_id == project_id)
+    dependencies = dependency_query.order_by(Dependency.predecessor_id, Dependency.successor_id).all()
     task_by_id = {task.id: task for task in tasks}
     predecessors = defaultdict(list)
     for dependency in dependencies:
         if dependency.predecessor_id in task_by_id and dependency.successor_id in task_by_id:
             predecessors[dependency.successor_id].append(task_by_id[dependency.predecessor_id])
 
-    critical_path = calculate_critical_path(db)
+    critical_path = calculate_critical_path(db, project_id)
     critical_task_ids = set(critical_path["task_ids"])
     unfinished_tasks = [task for task in tasks if not _is_done(task)]
     dependency_states = {task.id: get_dependency_state(task, db) for task in unfinished_tasks}

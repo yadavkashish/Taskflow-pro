@@ -1,71 +1,19 @@
 import React from 'react';
 import { Dependency, Task } from '../types';
 import { getDependencyState, getPredecessors } from '../utils/dependencyState';
+import { dependencyStyle, workflowStyle } from '../utils/statusStyles';
 
-interface ScheduleViewProps {
-  tasks: Task[];
-  dependencies: Dependency[];
-  criticalTaskIds: number[];
-}
-
-const displayDate = (value: string | null) => value?.slice(0, 10) ?? 'Not scheduled';
+interface ScheduleViewProps { tasks: Task[]; dependencies: Dependency[]; criticalTaskIds: number[]; }
+const date = (value: string | null) => value ? new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' }).format(new Date(value)) : 'Not scheduled';
 
 const ScheduleView: React.FC<ScheduleViewProps> = ({ tasks, dependencies, criticalTaskIds }) => {
-  const criticalIds = new Set(criticalTaskIds);
-  return (
-  <section className="mt-8 rounded-xl border border-slate-200 bg-white shadow-sm">
-    <div className="border-b border-slate-100 px-5 py-4">
-      <h2 className="text-lg font-semibold text-slate-900">Project Schedule</h2>
-      <p className="mt-1 text-sm text-slate-500">Dates are calculated by the dependency-aware backend scheduler.</p>
-    </div>
-    {tasks.length === 0 ? (
-      <p className="px-5 py-8 text-center text-sm text-slate-500">No tasks are available to schedule.</p>
-    ) : (
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[760px] text-left text-sm">
-          <thead className="bg-slate-50 text-xs uppercase tracking-wider text-slate-500">
-            <tr>
-              <th className="px-5 py-3 font-medium">Task</th>
-              <th className="px-4 py-3 font-medium">Dependency state</th>
-              <th className="px-4 py-3 font-medium">Duration</th>
-              <th className="px-4 py-3 font-medium">Scheduled start</th>
-              <th className="px-4 py-3 font-medium">Scheduled end</th>
-              <th className="px-4 py-3 font-medium">Prerequisites</th>
-              <th className="px-4 py-3 font-medium">Path</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {tasks.map((task) => {
-              const predecessors = getPredecessors(task.id, tasks, dependencies);
-              const latestPredecessor = predecessors
-                .filter((predecessor) => predecessor.end_date)
-                .sort((left, right) => (right.end_date ?? '').localeCompare(left.end_date ?? ''))[0];
-              const state = getDependencyState(task.id, tasks, dependencies);
-              return (
-                <tr key={task.id} className="text-slate-700">
-                  <td className="px-5 py-4 font-medium text-slate-900">{task.title}</td>
-                  <td className="px-4 py-4"><span className={`rounded-full px-2 py-1 text-xs font-medium ${state === 'READY' ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}`}>{state}</span></td>
-                  <td className="px-4 py-4">{task.duration === null ? 'Not scheduled' : `${task.duration} day${task.duration === 1 ? '' : 's'}`}</td>
-                  <td className="px-4 py-4">{displayDate(task.start_date)}</td>
-                  <td className="px-4 py-4">{displayDate(task.end_date)}</td>
-                  <td className="px-4 py-4 text-slate-500">
-                    {predecessors.length === 0 ? 'None' : (
-                      <div>
-                        <p>{predecessors.map((predecessor) => predecessor.title).join(', ')}</p>
-                        {latestPredecessor?.end_date && <p className="mt-1 text-xs text-indigo-600">Starts after latest: {latestPredecessor.title} — {displayDate(latestPredecessor.end_date)}</p>}
-                      </div>
-                    )}
-                  </td>
-                  <td className="px-4 py-4">{criticalIds.has(task.id) && <span className="rounded-full bg-violet-100 px-2 py-1 text-xs font-semibold text-violet-700">CRITICAL</span>}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-    )}
-  </section>
-  );
+  const scheduled = tasks.filter((task) => task.start_date && task.end_date).sort((a, b) => (a.start_date ?? '').localeCompare(b.start_date ?? ''));
+  const unscheduled = tasks.filter((task) => !task.start_date || !task.end_date);
+  const critical = new Set(criticalTaskIds);
+  return <>
+    <section className="mt-8 rounded-xl border border-indigo-200 bg-white shadow-sm"><div className="border-b border-indigo-100 px-4 py-4 sm:px-5"><p className="text-xs font-semibold uppercase tracking-wide text-indigo-700">Project timeline</p><h2 className="mt-1 text-lg font-semibold text-gray-900">Schedule sequence</h2><p className="mt-1 text-sm text-gray-600">Dates and timing are calculated by the dependency-aware scheduler.</p></div>{scheduled.length ? <div className="space-y-3 p-4 sm:p-5">{scheduled.map((task, index) => { const state = getDependencyState(task.id, tasks, dependencies); const predecessors = getPredecessors(task.id, tasks, dependencies); return <React.Fragment key={task.id}><article className={`min-w-0 rounded-lg border border-l-4 bg-white p-4 shadow-sm ${critical.has(task.id) ? 'border-indigo-200 border-l-indigo-500' : 'border-gray-200 border-l-gray-300'}`}><div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"><div className="min-w-0"><h3 className="break-words font-semibold text-gray-900">{task.title}</h3><p className="mt-2 text-sm text-gray-600">{date(task.start_date)} <span className="px-1 text-indigo-500">→</span> {date(task.end_date)}</p><p className="mt-1 text-xs text-gray-500">{task.duration === null ? 'Duration not set' : `${task.duration} day${task.duration === 1 ? '' : 's'}`}</p>{predecessors.length > 0 && <p className="mt-2 break-words text-xs text-gray-600">Depends on: {predecessors.map((item) => item.title).join(', ')}</p>}</div><div className="flex flex-wrap gap-1"><span className={`rounded-full border px-2 py-1 text-xs font-medium ${workflowStyle(task.status)}`}>{task.status.replace('_', ' ')}</span><span className={`rounded-full border px-2 py-1 text-xs font-medium ${dependencyStyle(state)}`}>{state === 'READY' ? '● READY' : '! BLOCKED'}</span>{critical.has(task.id) && <span className="rounded-full border border-indigo-200 bg-indigo-50 px-2 py-1 text-xs font-medium text-indigo-800">CRITICAL</span>}</div></div></article>{index < scheduled.length - 1 && <div className="ml-5 h-4 border-l-2 border-indigo-200" aria-hidden="true" />}</React.Fragment>; })}</div> : <p className="px-5 py-8 text-center text-sm text-gray-600">No scheduled tasks yet.</p>}</section>
+    {unscheduled.length > 0 && <section className="mt-6 rounded-xl border border-yellow-200 bg-yellow-50 p-4 sm:p-5"><h2 className="font-semibold text-yellow-900">Unscheduled Tasks</h2><p className="mt-1 text-sm text-yellow-800">These tasks need scheduling information before they can appear on the timeline.</p><ul className="mt-3 space-y-2">{unscheduled.map((task) => <li key={task.id} className="rounded-md border border-yellow-200 bg-white px-3 py-2 text-sm font-medium text-gray-800">{task.title}</li>)}</ul></section>}
+    <section className="mt-6 min-w-0 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm"><div className="border-b border-gray-100 px-4 py-4 sm:px-5"><h2 className="font-semibold text-gray-900">Schedule details</h2></div><div className="overflow-x-auto"><table className="w-full min-w-[680px] text-left text-sm"><thead className="bg-gray-50 text-xs uppercase tracking-wide text-gray-600"><tr><th className="px-4 py-3">Task</th><th className="px-3 py-3">State</th><th className="px-3 py-3">Duration</th><th className="px-3 py-3">Start</th><th className="px-3 py-3">End</th></tr></thead><tbody className="divide-y divide-gray-100">{tasks.map((task) => { const state = getDependencyState(task.id, tasks, dependencies); return <tr key={task.id} className="hover:bg-gray-50"><td className="max-w-[260px] break-words px-4 py-3 font-medium text-gray-900">{task.title}</td><td className="px-3 py-3"><span className={`rounded-full border px-2 py-1 text-xs font-medium ${dependencyStyle(state)}`}>{state}</span></td><td className="px-3 py-3 text-gray-700">{task.duration === null ? '—' : `${task.duration} days`}</td><td className="px-3 py-3 text-gray-700">{date(task.start_date)}</td><td className="px-3 py-3 text-gray-700">{date(task.end_date)}</td></tr>; })}</tbody></table></div></section>
+  </>;
 };
-
 export default ScheduleView;

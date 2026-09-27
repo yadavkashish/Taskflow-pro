@@ -32,7 +32,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, task, onSave, on
       setTitle(task.title);
       setDescription(task.description ?? '');
       setStatus(task.status);
-      setStartDate(toDateInput(task.start_date));
+      setStartDate(toDateInput(task.planned_start_date));
       setEndDate(toDateInput(task.end_date));
       setDuration(task.duration?.toString() ?? '');
     } else {
@@ -59,8 +59,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, task, onSave, on
       title: title.trim(),
       description: description || null,
       status,
-      start_date: startDate || null,
-      end_date: endDate || null,
+      planned_start_date: startDate || null,
       duration: duration === '' ? null : Number(duration),
     };
 
@@ -81,7 +80,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, task, onSave, on
     const changes: ImpactAnalysisChanges = {};
     const nextDuration = duration === '' ? null : Number(duration);
     if (nextDuration !== task.duration && nextDuration !== null) changes.duration = nextDuration;
-    if ((startDate || null) !== (toDateInput(task.start_date) || null) && startDate) changes.start_date = startDate;
+    if ((startDate || null) !== (toDateInput(task.planned_start_date) || null) && startDate) changes.start_date = startDate;
     if (Object.keys(changes).length === 0) {
       setError('Change the duration or start date before previewing impact.');
       return;
@@ -98,19 +97,19 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, task, onSave, on
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="task-modal-title">
+    <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto p-3 sm:p-4" role="dialog" aria-modal="true" aria-labelledby="task-modal-title">
       <button type="button" aria-label="Close task modal" className="absolute inset-0 h-full w-full cursor-default bg-slate-900/45 backdrop-blur-sm" disabled={saving} onClick={onClose} />
-      <div className="relative z-10 w-full max-w-2xl overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xl">
-        <div className="border-b border-slate-200 px-6 py-5">
+      <div className="modal-enter relative z-10 my-auto w-full max-w-2xl overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xl">
+        <div className="border-b border-slate-200 px-4 py-4 sm:px-6 sm:py-5">
           <h2 id="task-modal-title" className="text-xl font-semibold text-slate-900">{task ? 'Edit Task' : 'Create Task'}</h2>
           <p className="mt-1 text-sm text-slate-500">{task ? 'Update task details and workflow information.' : 'Add a task to your project workflow.'}</p>
         </div>
-        {preview ? <div className="space-y-5 px-6 py-5">
+        {preview ? <div className="max-h-[calc(100vh-12rem)] space-y-5 overflow-y-auto px-4 py-4 sm:px-6 sm:py-5">
           <div><p className="text-xs font-semibold uppercase tracking-wider text-indigo-600">Change impact</p><h3 className="mt-1 text-lg font-semibold text-slate-900">{preview.changed_task.title}</h3><p className="mt-1 text-sm text-slate-600">Duration: {preview.changed_task.before.duration ?? '—'} days → {preview.changed_task.after.duration ?? '—'} days</p></div>
           <section className="rounded-lg border border-slate-200 bg-slate-50 p-4"><p className="text-sm font-semibold text-slate-900">Project impact</p><p className="mt-1 text-sm text-slate-600">{preview.affected_count} downstream schedule change{preview.affected_count === 1 ? '' : 's'} detected.</p>{preview.affected_count === 0 && <p className="mt-2 text-sm text-slate-500">No downstream schedule changes detected.</p>}</section>
           {preview.affected_tasks.map((item) => <section key={item.task_id} className="rounded-lg border border-slate-200 p-4"><p className="font-semibold text-slate-900">{item.title}</p><p className="mt-2 text-sm text-slate-600">Start: {displayDate(item.before_start)} → {displayDate(item.after_start)}</p><p className="text-sm text-slate-600">End: {displayDate(item.before_end)} → {displayDate(item.after_end)}</p><p className={`mt-2 text-sm font-medium ${(item.delay_days ?? 0) > 0 ? 'text-rose-700' : 'text-emerald-700'}`}>{deltaLabel(item.delay_days)}</p></section>)}
           <section className="grid gap-3 sm:grid-cols-2"><div className="rounded-lg border border-slate-200 p-4"><p className="text-xs font-medium text-slate-500">Project completion</p><p className="mt-1 text-sm font-semibold text-slate-900">{displayDate(preview.project_completion.before)} → {displayDate(preview.project_completion.after)}</p><p className="mt-1 text-sm text-slate-600">{deltaLabel(preview.project_completion.delta_days)}</p></div><div className="rounded-lg border border-violet-200 bg-violet-50 p-4"><p className="text-xs font-medium text-violet-700">Critical Path</p><p className="mt-1 text-sm font-semibold text-violet-950">{preview.critical_path.before_duration} days → {preview.critical_path.after_duration} days</p><p className="mt-1 text-sm text-violet-700">{preview.critical_path.changed ? 'Critical path changed' : 'Critical path unchanged'}</p></div></section>
-        </div> : <div className="space-y-5 px-6 py-5">
+        </div> : <div className="max-h-[calc(100vh-12rem)] space-y-5 overflow-y-auto px-4 py-4 sm:px-6 sm:py-5">
           {error && <p role="alert" className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
           <label className="block text-sm font-medium text-slate-700">Title
             <input className={inputClassName} type="text" value={title} disabled={saving} onChange={(e) => setTitle(e.target.value)} />
@@ -127,18 +126,18 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, task, onSave, on
                 <option value="done">Done</option>
               </select>
             </label>
-            <label className="block text-sm font-medium text-slate-700">Start Date
+            <label className="block text-sm font-medium text-slate-700">Planned Start
               <input className={inputClassName} type="date" value={startDate} disabled={saving} onChange={(e) => setStartDate(e.target.value)} />
             </label>
-            <label className="block text-sm font-medium text-slate-700">End Date
-              <input className={inputClassName} type="date" value={endDate} disabled={saving} onChange={(e) => setEndDate(e.target.value)} />
+            <label className="block text-sm font-medium text-slate-700">Calculated End
+              <input className={inputClassName} type="date" value={endDate} disabled />
             </label>
           </div>
           <label className="block max-w-xs text-sm font-medium text-slate-700">Duration (days)
             <input className={inputClassName} type="number" min="0" value={duration} disabled={saving} onChange={(e) => setDuration(e.target.value)} />
           </label>
         </div>}
-        <div className="flex items-center justify-end gap-3 border-t border-slate-200 bg-slate-50 px-6 py-4">
+        <div className="flex flex-wrap items-center justify-end gap-3 border-t border-slate-200 bg-slate-50 px-4 py-4 sm:px-6">
           {preview ? <><button type="button" className="rounded-md px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-200" disabled={saving} onClick={() => setPreview(null)}>Back to Edit</button><button type="button" className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 disabled:bg-indigo-400" disabled={saving} onClick={handleSave}>{saving ? 'Applying...' : 'Apply Change'}</button></> : <><button type="button" className="rounded-md px-4 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-200 disabled:cursor-not-allowed" disabled={saving || previewing} onClick={onClose}>Cancel</button>{task && <button type="button" className="rounded-md border border-indigo-200 bg-white px-4 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-50 disabled:opacity-50" disabled={saving || previewing} onClick={handlePreview}>{previewing ? 'Previewing...' : 'Preview Impact'}</button>}<button type="button" className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:bg-indigo-400" disabled={saving || previewing} onClick={handleSave}>{saving ? 'Saving...' : task ? 'Save Changes' : 'Create Task'}</button></>}
         </div>
       </div>

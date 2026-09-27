@@ -51,6 +51,36 @@ def test_critical_path_uses_longest_diamond_branch_without_double_counting(db_se
     assert result["total_duration"] == 9
 
 
+def test_critical_path_selects_build_api_branch_in_asymmetric_diamond(db_session):
+    design, api, ui, testing = (
+        add_task(db_session, title, duration)
+        for title, duration in [
+            ("Design Database", 6),
+            ("Build API", 3),
+            ("Build UI", 2),
+            ("Testing", 2),
+        ]
+    )
+    for predecessor, successor in [(design, api), (design, ui), (api, testing), (ui, testing)]:
+        add_edge(db_session, predecessor, successor)
+
+    result = calculate_critical_path(db_session)
+
+    assert result["task_ids"] == [design.id, api.id, testing.id]
+    assert result["total_duration"] == 11
+
+
+def test_critical_path_selects_longer_branch_from_shared_root(db_session):
+    a, b, c = (add_task(db_session, title, duration) for title, duration in [("A", 2), ("B", 10), ("C", 3)])
+    add_edge(db_session, a, b)
+    add_edge(db_session, a, c)
+
+    result = calculate_critical_path(db_session)
+
+    assert result["task_ids"] == [a.id, b.id]
+    assert result["total_duration"] == 12
+
+
 def test_critical_path_selects_longest_parallel_root_or_chain(db_session):
     a = add_task(db_session, "A", 10)
     b = add_task(db_session, "B", 2)

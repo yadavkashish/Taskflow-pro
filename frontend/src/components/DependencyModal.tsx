@@ -47,14 +47,14 @@ const DependencyModal: React.FC<DependencyModalProps> = ({ isOpen, tasks, onClos
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="dependency-modal-title">
+    <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto p-3 sm:p-4" role="dialog" aria-modal="true" aria-labelledby="dependency-modal-title">
       <button type="button" aria-label="Close dependency modal" className="absolute inset-0 h-full w-full cursor-default bg-slate-900/45" disabled={saving} onClick={onClose} />
-      <div className="relative z-10 w-full max-w-lg rounded-xl border border-slate-200 bg-white shadow-2xl">
-        <div className="border-b border-slate-200 px-6 py-5">
+      <div className="modal-enter relative z-10 my-auto w-full max-w-lg overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xl">
+        <div className="border-b border-slate-200 px-4 py-4 sm:px-6 sm:py-5">
           <h2 id="dependency-modal-title" className="text-xl font-semibold text-slate-900">Add Dependency</h2>
           <p className="mt-1 text-sm text-slate-500">Connect a prerequisite task to the task it blocks.</p>
         </div>
-        <div className="space-y-4 px-6 py-5">
+        <div className="max-h-[calc(100vh-13rem)] space-y-4 overflow-y-auto px-4 py-4 sm:px-6 sm:py-5">
           {error && <p role="alert" className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"><strong>Cannot add dependency.</strong> {error}</p>}
           <label className="block text-sm font-medium text-slate-700">Prerequisite
             <select className="mt-1 block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100" value={predecessorId} disabled={saving} onChange={(event) => setPredecessorId(event.target.value)}>
@@ -68,7 +68,7 @@ const DependencyModal: React.FC<DependencyModalProps> = ({ isOpen, tasks, onClos
             </select>
           </label>
         </div>
-        <div className="flex justify-end gap-3 border-t border-slate-200 bg-slate-50 px-6 py-4">
+        <div className="flex flex-wrap justify-end gap-3 border-t border-slate-200 bg-slate-50 px-4 py-4 sm:px-6">
           <button type="button" className="rounded-md px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-200" disabled={saving} onClick={onClose}>Cancel</button>
           <button type="button" className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 disabled:bg-indigo-400" disabled={saving || tasks.length < 2} onClick={handleSave}>{saving ? 'Adding...' : 'Add Dependency'}</button>
         </div>

@@ -9,6 +9,7 @@ from app.models.dependency import Dependency
 from app.models.task import Task
 from app.schemas.impact import ImpactChanges
 from app.services.critical_path import calculate_critical_path_for_graph
+from app.services.scheduling import recompute_schedule_for_graph
 
 
 @dataclass
@@ -16,6 +17,7 @@ class SimulatedTask:
     id: int
     title: str
     duration: Optional[int]
+    planned_start_date: Optional[datetime]
     start_date: Optional[datetime]
     end_date: Optional[datetime]
 
@@ -37,36 +39,12 @@ def _downstream(task_id: int, successors: Dict[int, List[int]]) -> Set[int]:
     return visited
 
 
-def _propagate_dates(tasks: Dict[int, SimulatedTask], edges: List[Tuple[int, int]], task_id: int) -> None:
-    """In-memory equivalent of DAGEngine.propagate_dates; never persists data."""
-    predecessors: Dict[int, List[int]] = {task_key: [] for task_key in tasks}
-    successors: Dict[int, List[int]] = {task_key: [] for task_key in tasks}
-    for predecessor_id, successor_id in edges:
-        predecessors[successor_id].append(predecessor_id)
-        successors[predecessor_id].append(successor_id)
-    for task_ids in predecessors.values():
-        task_ids.sort()
-    for task_ids in successors.values():
-        task_ids.sort()
-
-    queue = [task_id]
-    while queue:
-        predecessor_id = queue.pop(0)
-        for successor_id in successors.get(predecessor_id, []):
-            successor = tasks[successor_id]
-            predecessor_ends = [tasks[item].end_date for item in predecessors[successor_id] if tasks[item].end_date is not None]
-            if successor.start_date is not None and predecessor_ends:
-                earliest_start = max(predecessor_ends)
-                if successor.start_date < earliest_start:
-                    successor.start_date = earliest_start
-                    if successor.duration is not None:
-                        successor.end_date = earliest_start + timedelta(days=successor.duration)
-            queue.append(successor_id)
-
-
-def analyze_impact(db: Session, task_id: int, changes: ImpactChanges) -> dict:
+def analyze_impact(db: Session, task_id: int, changes: ImpactChanges, project_id: int | None = None) -> dict:
     """Preview a task schedule change entirely in memory without mutating the session."""
-    source_tasks = db.query(Task).order_by(Task.id).all()
+    query = db.query(Task)
+    if project_id is not None:
+        query = query.filter(Task.project_id == project_id)
+    source_tasks = query.order_by(Task.id).all()
     if task_id not in {task.id for task in source_tasks}:
         raise HTTPException(status_code=404, detail="Task not found")
     if not ({"duration", "start_date"} & changes.model_fields_set):
@@ -76,20 +54,30 @@ def analyze_impact(db: Session, task_id: int, changes: ImpactChanges) -> dict:
     if "start_date" in changes.model_fields_set and changes.start_date is None:
         raise HTTPException(status_code=422, detail="start_date cannot be null for impact analysis")
 
-    edges = [(item.predecessor_id, item.successor_id) for item in db.query(Dependency).order_by(Dependency.predecessor_id, Dependency.successor_id)]
-    before = {task.id: SimulatedTask(task.id, task.title, task.duration, task.start_date, task.end_date) for task in source_tasks}
+    dependency_query = db.query(Dependency).join(Task, Dependency.predecessor_id == Task.id)
+    if project_id is not None:
+        dependency_query = dependency_query.filter(Task.project_id == project_id)
+    edges = [(item.predecessor_id, item.successor_id) for item in dependency_query.order_by(Dependency.predecessor_id, Dependency.successor_id)]
+    predecessor_ids = {successor_id for _, successor_id in edges}
+    before = {
+        task.id: SimulatedTask(
+            task.id,
+            task.title,
+            task.duration,
+            task.planned_start_date if task.planned_start_date is not None else (task.start_date if task.id not in predecessor_ids else None),
+            task.start_date,
+            task.end_date,
+        )
+        for task in source_tasks
+    }
     after = {task_id: replace(task) for task_id, task in before.items()}
     changed = after[task_id]
     if "duration" in changes.model_fields_set:
         changed.duration = changes.duration
     if "start_date" in changes.model_fields_set:
-        changed.start_date = changes.start_date
-    if changed.start_date is not None and changed.duration is not None:
-        changed.end_date = changed.start_date + timedelta(days=changed.duration)
-    elif "start_date" in changes.model_fields_set or "duration" in changes.model_fields_set:
-        changed.end_date = None
+        changed.planned_start_date = changes.start_date
 
-    _propagate_dates(after, edges, task_id)
+    recompute_schedule_for_graph(after.values(), edges)
     successors: Dict[int, List[int]] = {task.id: [] for task in source_tasks}
     for predecessor_id, successor_id in edges:
         successors[predecessor_id].append(successor_id)
