@@ -25,17 +25,55 @@ The backend is structured into several key components:
 
 ## Tech Stack
 - **Backend Framework**: FastAPI
-- **Database**: SQLite for local development (the configured `DATABASE_URL` may point to another SQLAlchemy-supported database)
+- **Database**: SQLite for local development and automated tests; PostgreSQL is supported for deployment through SQLAlchemy and `psycopg`.
 - **ORM**: SQLAlchemy
 - **Testing**: pytest
 - **Dependency Management**: Pydantic
 
 ## Database
 
-TaskFlow Pro uses SQLAlchemy with SQLite persistence for local development.
-By default the backend uses `sqlite:///./taskflow.db`; set `DATABASE_URL` to
-override it. SQLite satisfies the project's persistent-storage requirement for
-the submission without implying production-scale database guarantees.
+TaskFlow Pro uses SQLAlchemy with SQLite persistence for local development and
+automated tests. By default the backend uses `sqlite:///./taskflow.db`.
+
+For PostgreSQL deployment, set an untracked environment value such as:
+
+```text
+DATABASE_URL=postgresql+psycopg://USER:PASSWORD@HOST/DATABASE?sslmode=require
+```
+
+Never commit real database credentials. SQLite's `check_same_thread` option is
+applied only to SQLite engines; PostgreSQL engines use the `psycopg` driver
+without SQLite-specific connection arguments. A fresh configured database is
+initialized through SQLAlchemy metadata creation. Existing startup compatibility
+migrations are additive and dialect-safe, but are not a replacement for a
+versioned migration process: introduce Alembic before evolving a deployed
+production schema beyond the documented compatibility columns.
+
+After configuring PostgreSQL, an optional non-destructive verification creates
+one uniquely named temporary project, two tasks, and one dependency; verifies
+them; then deletes only those records:
+
+```bash
+python scripts/verify_postgresql.py
+```
+
+## Deployment configuration
+
+The backend reads deployment configuration from environment variables only:
+
+| Variable | Deployment purpose |
+| --- | --- |
+| `DATABASE_URL` | Neon PostgreSQL SQLAlchemy URL, using `postgresql+psycopg://...` |
+| `FRONTEND_ORIGIN` | Vercel browser origin, for example `https://your-app.vercel.app` |
+| `AI_PROVIDER` | Optional advisory provider such as `groq` |
+| `GROQ_API_KEY` / `GROQ_MODEL` | Groq server-side configuration only |
+| `PORT` | Render-provided listening port |
+
+Render settings: set the service root directory to `backend`, use build command
+`python -m pip install -r requirements.txt`, and start command
+`python -m uvicorn app.main:app --host 0.0.0.0 --port $PORT`. Do not enable
+reload in deployment. `GET /health` is a liveness endpoint returning only
+`{"status":"ok"}`.
 
 - **Project** stores its name, description, start date, target deadline, and timestamps.
 - **Task** stores its owning `project_id`, title, description, workflow status,

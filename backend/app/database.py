@@ -1,10 +1,21 @@
 from sqlalchemy import create_engine, inspect, text
+from sqlalchemy.engine import Engine, make_url
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 import os
 
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./taskflow.db")
 
-engine = create_engine(DATABASE_URL)
+
+def create_database_engine(database_url: str) -> Engine:
+    """Create an engine without leaking SQLite-only options to other dialects."""
+    dialect_name = make_url(database_url).get_backend_name()
+    engine_options = {}
+    if dialect_name == "sqlite":
+        engine_options["connect_args"] = {"check_same_thread": False}
+    return create_engine(database_url, **engine_options)
+
+
+engine = create_database_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
@@ -33,7 +44,9 @@ def migrate_task_schedule_schema() -> None:
     if "planned_start_date" in column_names:
         return
     with engine.begin() as connection:
-        connection.execute(text("ALTER TABLE tasks ADD COLUMN planned_start_date DATETIME"))
+        # TIMESTAMP is accepted by SQLite and PostgreSQL. The migration remains
+        # additive and is skipped entirely once the column already exists.
+        connection.execute(text("ALTER TABLE tasks ADD COLUMN planned_start_date TIMESTAMP"))
         connection.execute(text("UPDATE tasks SET planned_start_date = start_date WHERE start_date IS NOT NULL"))
 
 

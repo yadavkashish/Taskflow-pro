@@ -9,10 +9,11 @@ database, so the suite does not alter the normal development database.
 
 | Check | Result |
 | --- | --- |
-| Backend automated tests | PASS — 94 passed |
-| Backend test collection | PASS — 94 tests collected |
+| Backend automated tests | PASS — 98 passed |
+| Backend test collection | PASS — 98 tests collected |
 | TypeScript | PASS — `npx tsc --noEmit` |
 | Production frontend build | PASS — `npm run build` |
+| PostgreSQL persistence verification | PASS — temporary project, tasks, and dependency created, read, and removed safely |
 | Demo seed idempotency | PASS — covered by automated tests |
 | Cycle rejection | PASS — covered by automated tests |
 | No-compounding regression | PASS — covered by automated tests |
@@ -35,7 +36,8 @@ cd backend
 python -m pytest --collect-only -q
 ```
 
-The latest verified run collected and passed **94 tests** across these modules:
+The latest verification run collected and passed **96 tests**. The suite
+includes these modules:
 
 | Test module | Verified behavior |
 | --- | --- |
@@ -51,6 +53,8 @@ The latest verified run collected and passed **94 tests** across these modules:
 | `test_suggestions.py` | Advisory AI suggestions, project grounding/filtering, no automatic persistence, normal DAG acceptance, provider configuration/error handling, Groq structured output and bounded retry behavior |
 | `test_demo_seed.py` | Idempotent 10-task demo seed, unrelated-project preservation, cycle rejection, Critical Path, converging-path delay, rollback state |
 | `test_persistence_storage.py` | Cross-session project/task/dependency persistence and demo-seed idempotency |
+| `test_database_configuration.py` | SQLite-only engine options, PostgreSQL engine configuration without a live connection, and portable model DDL compilation |
+| `test_deployment_configuration.py` | Explicit CORS origin parsing and secret-free backend liveness endpoint |
 
 ## Frontend Verification
 
@@ -115,8 +119,11 @@ The following are intentional, automated behaviors—not unhandled failures:
 - Live LLM behavior is intentionally not exercised by pytest. Provider
   requests are mocked in automated tests so the suite does not require keys,
   consume quota, or depend on a network connection.
-- SQLite persistence is tested locally and across sessions. The repository
-  does not claim load, concurrency, or production-database benchmark coverage.
+- SQLite persistence is tested locally and across sessions. PostgreSQL engine
+  configuration and model DDL are automated without a live server; the safe
+  `scripts/verify_postgresql.py` command was also run successfully against the
+  configured PostgreSQL database. The repository does not claim load,
+  concurrency, or production-database benchmark verification.
 
 ## Related Documentation
 

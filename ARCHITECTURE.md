@@ -54,8 +54,19 @@ The main application services are:
   planned start constraint, and derived schedule dates.
 - **Dependency**: predecessor-to-successor task edge.
 
-SQLite is the default local `DATABASE_URL` database. The repository uses
-SQLAlchemy and does not claim production-scale database support.
+SQLite is the default local and automated-test `DATABASE_URL` database.
+PostgreSQL is supported for deployment through SQLAlchemy's
+`postgresql+psycopg` dialect. SQLite-only engine arguments are selected only
+for SQLite; scheduling, DAG validation, and project isolation operate through
+SQLAlchemy sessions and are database-independent. The application can create a
+fresh schema on either dialect. Its existing additive startup compatibility
+steps are not a versioned production migration system; Alembic should be added
+before future deployed-schema evolution.
+
+For browser deployment, FastAPI CORS accepts the explicit `FRONTEND_ORIGIN`
+(or local Vite origins when it is unset), never a wildcard with credentials.
+The Vite frontend receives only `VITE_API_BASE_URL`; provider and database
+credentials remain backend environment variables.
 
 ## Data Flow
 

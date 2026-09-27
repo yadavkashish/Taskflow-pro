@@ -49,10 +49,13 @@ impact previews.
 
 ### Database
 
-SQLite is the default local database through `DATABASE_URL`
-(`sqlite:///./taskflow.db`). `DATABASE_URL` is passed to SQLAlchemy and may
-be configured for another compatible database, but this repository only claims
-local SQLite persistence and test coverage.
+SQLite is the default database for local development and automated tests through
+`DATABASE_URL` (`sqlite:///./taskflow.db`). PostgreSQL is supported for
+deployment through SQLAlchemy and `psycopg`, for example
+`postgresql+psycopg://USER:PASSWORD@HOST/DATABASE?sslmode=require`. Credentials
+remain only in an untracked backend environment file. SQLite is the locally
+tested database; a live PostgreSQL deployment must be verified against its own
+configured database before release.
 
 ### AI providers
 
@@ -218,13 +221,37 @@ npm install
 npm run dev
 ```
 
+## Deployment
+
+TaskFlow Pro can be deployed as an evaluation-ready prototype with Vercel,
+Render, and Neon:
+
+1. Create a Neon PostgreSQL database. Set its untracked connection string as
+   Render's `DATABASE_URL` using `postgresql+psycopg://...`.
+2. Create a Render web service from this repository with root directory
+   `backend`, build command `python -m pip install -r requirements.txt`, and
+   start command `python -m uvicorn app.main:app --host 0.0.0.0 --port $PORT`.
+   Configure `AI_PROVIDER`, Groq values if AI suggestions are desired, and
+   later set `FRONTEND_ORIGIN` to the Vercel URL.
+3. Create a Vercel project with root directory `frontend`, build command
+   `npm run build`, and output directory `dist`. Set
+   `VITE_API_BASE_URL` to the Render backend URL without a trailing slash.
+   `frontend/vercel.json` rewrites nested SPA routes to `index.html`.
+4. After the backend starts, verify `GET /health`, then run
+   `python scripts/seed_demo.py` from the backend service only when demo data
+   is desired. The seed is idempotent and never uploads a local SQLite file.
+
+Never configure `DATABASE_URL`, provider keys, or credentials as `VITE_*`
+variables. The frontend receives only its public API base URL.
+
 ## Environment Variables
 
 Configure these names in `backend/.env`; never commit real values:
 
 | Variable | Purpose |
 | --- | --- |
-| `DATABASE_URL` | SQLite connection by default, or another SQLAlchemy connection URL |
+| `DATABASE_URL` | SQLite connection by default, or Neon PostgreSQL connection URL on the backend |
+| `FRONTEND_ORIGIN` | Allowed Vercel frontend origin for backend CORS |
 | `AI_PROVIDER` | `groq`, `gemini`, or `openai` |
 | `GROQ_API_KEY` | Groq server-side credential |
 | `GROQ_MODEL` | Groq model identifier |
@@ -239,7 +266,7 @@ Configure these names in `backend/.env`; never commit real values:
 
 ## Testing and Reliability
 
-Latest verified backend result: **94 passed**.
+Latest verified backend result: **96 passed**.
 
 ```bash
 cd backend

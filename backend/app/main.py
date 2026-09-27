@@ -1,3 +1,5 @@
+import os
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app import config  # Load backend/.env before routers/services read configuration.
@@ -6,10 +8,17 @@ from app.database import Base, engine, migrate_project_schema, migrate_task_sche
 
 app = FastAPI()
 
-# CORS middleware configuration
+
+def get_cors_origins(frontend_origin: str | None = None) -> list[str]:
+    """Return explicit browser origins; deployment values may be comma-separated."""
+    configured_origins = frontend_origin if frontend_origin is not None else os.getenv("FRONTEND_ORIGIN", "")
+    origins = [origin.strip().rstrip("/") for origin in configured_origins.split(",") if origin.strip()]
+    return origins or ["http://localhost:3000", "http://localhost:5173", "http://127.0.0.1:3000", "http://127.0.0.1:5173"]
+
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Update this to restrict origins in production
+    allow_origins=get_cors_origins(),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -21,6 +30,12 @@ def startup():
     Base.metadata.create_all(bind=engine)
     migrate_task_schedule_schema()
     migrate_project_schema()
+
+
+@app.get("/health")
+def health():
+    """Unauthenticated liveness endpoint that exposes no configuration."""
+    return {"status": "ok"}
 
 # Include API routers
 app.include_router(tasks.router, prefix="/tasks", tags=["tasks"])
