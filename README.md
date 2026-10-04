@@ -17,7 +17,7 @@ edges for human review; it never changes the graph on its own.
 - Multi-project dashboard and isolated project workspaces
 - Task create, edit, delete, and status updates
 - Backlog, In Progress, Review, and Done Kanban workflow
-- Persistent drag-and-drop moves and same-column ordering
+- Explicit workflow status updates with deterministic persisted column ordering
 - Prerequisite dependency management and visual dependency map
 - Derived READY/BLOCKED state independent of a task's workflow column
 - Self, duplicate, direct, and indirect cycle rejection
@@ -35,10 +35,9 @@ edges for human review; it never changes the graph on its own.
 
 ### Frontend
 
-React, TypeScript, Vite, Tailwind CSS, React Router, Axios, and
-`@dnd-kit/core` provide project-scoped pages, Kanban drag-and-drop, schedule
-and Calendar views, dependency visualizations, and the AI suggestion review
-flow.
+React, TypeScript, Vite, Tailwind CSS, React Router, and Axios provide
+project-scoped pages, explicit Kanban workflow status controls, schedule and
+Calendar views, dependency visualizations, and the AI suggestion review flow.
 
 ### Backend
 

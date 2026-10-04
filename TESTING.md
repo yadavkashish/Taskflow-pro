@@ -114,7 +114,7 @@ The following are intentional, automated behaviors—not unhandled failures:
   no application frontend test files were found. This is documented rather
   than masked by disabling checks.
 - Browser-level visual verification is manual. The Calendar, responsive
-  layouts, drag-and-drop interactions, and route transitions are not covered
+  layouts, explicit workflow-status controls, and route transitions are not covered
   by an automated browser test suite in this repository.
 - Live LLM behavior is intentionally not exercised by pytest. Provider
   requests are mocked in automated tests so the suite does not require keys,

@@ -46,7 +46,6 @@ export const createProjectTask = async (projectId: number, task: TaskCreateInput
 export const updateProjectTask = async (projectId: number, id: number, task: TaskUpdateInput): Promise<Task> => (await axios.put<Task>(`${API_BASE_URL}/projects/${projectId}/tasks/${id}`, task)).data;
 export const deleteProjectTask = async (projectId: number, id: number): Promise<void> => { await axios.delete(`${API_BASE_URL}/projects/${projectId}/tasks/${id}`); };
 export const moveProjectTask = async (projectId: number, id: number, status: Task['status']): Promise<Task> => (await axios.post<Task>(`${API_BASE_URL}/projects/${projectId}/tasks/${id}/move`, null, { params: { status } })).data;
-export const reorderProjectTask = async (projectId: number, id: number, status: Task['status'], orderedTaskIds: number[]): Promise<Task> => (await axios.post<Task>(`${API_BASE_URL}/projects/${projectId}/tasks/${id}/reorder`, { status, ordered_task_ids: orderedTaskIds })).data;
 export const getProjectDependencies = async (projectId: number): Promise<Dependency[]> => (await axios.get<Dependency[]>(`${API_BASE_URL}/projects/${projectId}/dependencies`)).data;
 export const createProjectDependency = async (projectId: number, dependency: DependencyCreateInput): Promise<Dependency> => (await axios.post<Dependency>(`${API_BASE_URL}/projects/${projectId}/dependencies`, dependency)).data;
 export const deleteProjectDependency = async (projectId: number, id: number): Promise<void> => { await axios.delete(`${API_BASE_URL}/projects/${projectId}/dependencies/${id}`); };

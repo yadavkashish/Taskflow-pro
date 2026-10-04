@@ -22,8 +22,8 @@ button:active:not(:disabled) { transform: translateY(1px); }
 .metric-card { position: relative; isolation: isolate; overflow: hidden; animation: card-enter 360ms var(--ease-out) both; }
 .metric-card::after { content: ''; position: absolute; z-index: -1; right: -1.5rem; bottom: -2rem; width: 6rem; height: 6rem; border-radius: 9999px; background: radial-gradient(circle, rgb(99 102 241 / .12), transparent 68%); }
 .metric-card:nth-child(2) { animation-delay: 40ms; }.metric-card:nth-child(3) { animation-delay: 80ms; }.metric-card:nth-child(4) { animation-delay: 120ms; }
-.task-card-motion { transition: transform 160ms var(--ease-out), box-shadow 160ms var(--ease-out), border-color 160ms var(--ease-out); }
-.task-card-motion:hover { transform: translateY(-1px); }
+.task-card-motion { transition: box-shadow 160ms var(--ease-out), border-color 160ms var(--ease-out), background-color 160ms var(--ease-out); }
+.task-card-motion:hover { border-color: rgb(165 180 252); }
 .task-card-title { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 .task-card-description { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 3; }
 .task-card-details { animation: task-card-details-enter 180ms var(--ease-out) both; }

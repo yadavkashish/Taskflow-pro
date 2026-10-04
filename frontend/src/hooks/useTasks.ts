@@ -11,7 +11,7 @@ import {
 import {
     createProjectDependency, createProjectTask, deleteProjectDependency, deleteProjectTask,
     getProjectDependencies, getProjectCriticalPath, getProjectTasks, getScopedProjectHealth,
-    moveProjectTask, reorderProjectTask, updateProjectTask,
+    moveProjectTask, updateProjectTask,
 } from '../services/api';
 
 const useTasks = (projectId: number) => {
@@ -108,27 +108,6 @@ const useTasks = (projectId: number) => {
         }
     };
 
-    const reorderTask = async (
-        task: Task,
-        status: Task['status'],
-        orderedTaskIds: number[]
-    ) => {
-        try {
-            if (task.status !== status) {
-                await moveProjectTask(projectId, task.id, status);
-            }
-            const reorderedTask = await reorderProjectTask(projectId, task.id, status, orderedTaskIds);
-            await fetchTasks();
-            setError(null);
-            return reorderedTask;
-        } catch (err) {
-            setError('Failed to persist task order');
-            console.error('Failed to persist task order:', err);
-            await fetchTasks();
-            throw err;
-        }
-    };
-
     const createDependency = async (dependency: DependencyCreateInput) => {
         try {
             const createdDependency = await createProjectDependency(projectId, dependency);
@@ -137,7 +116,6 @@ const useTasks = (projectId: number) => {
             setError(null);
             return createdDependency;
         } catch (err) {
-            setError('Failed to add dependency');
             console.error('Failed to add dependency:', err);
             throw err;
         }
@@ -172,7 +150,6 @@ const useTasks = (projectId: number) => {
         updateTask,
         deleteTask,
         moveTask,
-        reorderTask,
         createDependency,
         deleteDependency,
     };

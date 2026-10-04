@@ -5,7 +5,7 @@ TaskFlow Pro is a dependency-aware project management tool that enhances traditi
 
 ## Features
 - **Kanban Board**: A visual representation of tasks organized in columns (Backlog, In Progress, Review, Done).
-- **Task Management**: Create, edit, delete, and reorder tasks.
+- **Task Management**: Create, edit, delete, and explicitly update workflow status.
 - **Dependency Management**: Add and remove dependencies between tasks.
 - **Automatic Status Updates**: Tasks automatically become BLOCKED or READY based on their dependencies.
 - **Date Propagation**: Changes in task dates propagate through dependent tasks.
@@ -15,7 +15,7 @@ TaskFlow Pro is a dependency-aware project management tool that enhances traditi
 The frontend is built using React and TypeScript, utilizing Vite for development and build processes. The application communicates with the backend via REST APIs.
 
 ## Tech Stack
-- **Frontend**: React, TypeScript, Vite, Tailwind CSS, @dnd-kit for drag-and-drop functionality.
+- **Frontend**: React, TypeScript, Vite, and Tailwind CSS.
 - **State Management**: Custom hooks for managing task-related state.
 - **API Communication**: Axios or Fetch for making API calls to the backend.
 
